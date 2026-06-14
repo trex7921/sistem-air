@@ -154,44 +154,173 @@ $(document).ready(function () {
         $("#box2").text("m³");
         $("#box3").text("orang");
         $("#box4").text("orang");
-        return;
+
+
+      } else {
+
+
+        $.ajax({
+          type: "post",
+          url: "../assets/ajax.php",
+          data: { p: "summary", t: bln },
+          dataType: "json"
+        })
+          .done(function (d) {
+            // d adalah array hasil kiriman json_encode dari ajax.php
+
+            if (level_user === "admin" || level_user === "petugas") {
+              $("#box1").text(d[0].jml_pelanggan + " Orang");
+              $("#box2").text(d[1].total_pemakaian + " m³");
+              $("#box3").text(d[2].tercatat + " Warga");
+              $("#box4").text(d[3].belum_dicatat + " Warga");
+            }
+            else if (level_user === "bendahara") {
+              $("#box1").text(d[0].jml_pelanggan + " Orang");
+              $("#box2").text(d[1].total_pemasukan);
+              $("#box3").text(d[2].lunas + " Warga");
+              $("#box4").text(d[3].belum_bayar + " Warga");
+            }
+            else if (level_user === "warga") {
+              $("#box1").text(d[0].info);
+              $("#box2").text(d[1].info);
+              $("#box3").text(d[2].info);
+              $("#box4").text(d[3].info);
+            }
+          })
+          .fail(function (xhr, status, error) {
+            console.log("Error Terjadi!");
+            console.log("Pesan Server:", xhr.responseText);
+          });
       }
 
       $.ajax({
         type: "post",
         url: "../assets/ajax.php",
-        data: { p: "summary", t: bln },
+        data: { p: "chart_bar", y: user },
         dataType: "json"
       })
-        .done(function (d) {
-          // d adalah array hasil kiriman json_encode dari ajax.php
+        .done(function (response) {
+          console.log("Data Chart Berhasil Masuk:", response);
+          sumbuX = response.filter((num, index) => index % 2 == 0);
+          sumbuY = response.filter((num, index) => index % 2 != 0);
+          // Set new default font family and font color to mimic Bootstrap's default styling
+          Chart.defaults.global.defaultFontFamily = '-apple-system,system-ui,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif';
+          Chart.defaults.global.defaultFontColor = '#292b2c';
 
-          if (level_user === "admin" || level_user === "petugas") {
-            $("#box1").text(d[0].jml_pelanggan + " Orang");
-            $("#box2").text(d[1].total_pemakaian + " m³");
-            $("#box3").text(d[2].tercatat + " Warga");
-            $("#box4").text(d[3].belum_dicatat + " Warga");
-          }
-          else if (level_user === "bendahara") {
-            $("#box1").text(d[0].jml_pelanggan + " Orang");
-            $("#box2").text(d[1].total_pemasukan);
-            $("#box3").text(d[2].lunas + " Warga");
-            $("#box4").text(d[3].belum_bayar + " Warga");
-          }
-          else if (level_user === "warga") {
-            $("#box1").text(d[0].info);
-            $("#box2").text(d[1].info);
-            $("#box3").text(d[2].info);
-            $("#box4").text(d[3].info);
-          }
-        })
-        .fail(function (xhr, status, error) {
-          console.log("Error Terjadi!");
-          console.log("Pesan Server:", xhr.responseText);
+          // Bar Chart Example
+          var ctx = document.getElementById("myBarChart");
+          var myLineChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: sumbuX,
+              datasets: [{
+                label: "Tagihan (Rp)",
+                backgroundColor: "rgba(2,117,216,1)",
+                borderColor: "rgba(2,117,216,1)",
+                data: sumbuY,
+              }],
+            },
+            options: {
+              scales: {
+                xAxes: [{
+                  time: {
+                    unit: 'month'
+                  },
+                  gridLines: {
+                    display: false
+                  },
+                  ticks: {
+                    maxTicksLimit: 6
+                  }
+                }],
+                yAxes: [{
+                  ticks: {
+                    min: 0,
+                    max: 300,
+                    maxTicksLimit: 5
+                  },
+                  gridLines: {
+                    display: true
+                  }
+                }],
+              },
+              legend: {
+                display: false
+              }
+            }
+          });
+        });
+
+      $.ajax({
+        type: "post",
+        url: "../assets/ajax.php",
+        data: { p: "chart_line", y: user },
+        dataType: "json"
+      })
+        .done(function (response) {
+          console.log("Data Chart Berhasil Masuk:", response);
+          sumbuX = response.filter((num, index) => index % 2 == 0);
+          sumbuY = response.filter((num, index) => index % 2 != 0);
+          // Set new default font family and font color to mimic Bootstrap's default styling
+          Chart.defaults.global.defaultFontFamily = '-apple-system,system-ui,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif';
+          Chart.defaults.global.defaultFontColor = '#292b2c';
+
+          // Area Chart Example
+          var ctx = document.getElementById("myAreaChart");
+          var myLineChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: sumbuX,
+              datasets: [{
+                label: "Tagihan (Rp)",
+                lineTension: 0.3,
+                backgroundColor: "rgba(2,117,216,0.2)",
+                borderColor: "rgba(2,117,216,1)",
+                pointRadius: 5,
+                pointBackgroundColor: "rgba(2,117,216,1)",
+                pointBorderColor: "rgba(255,255,255,0.8)",
+                pointHoverRadius: 5,
+                pointHoverBackgroundColor: "rgba(2,117,216,1)",
+                pointHitRadius: 50,
+                pointBorderWidth: 2,
+                data: sumbuY,
+              }],
+            },
+            options: {
+              scales: {
+                xAxes: [{
+                  time: {
+                    unit: 'date'
+                  },
+                  gridLines: {
+                    display: false
+                  },
+                  ticks: {
+                    maxTicksLimit: 7
+                  }
+                }],
+                yAxes: [{
+                  ticks: {
+                    min: 0,
+                    max: 1000000,
+                    maxTicksLimit: 5
+                  },
+                  gridLines: {
+                    color: "rgba(0, 0, 0, .125)",
+                  }
+                }],
+              },
+              legend: {
+                display: false
+              }
+            }
+
+
+          });
         });
 
 
-    });
+    }).change();
 
 
     // SENSOR ALERT PHP (Memastikan form tidak tertutup grafik saat gagal simpan)

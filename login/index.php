@@ -35,6 +35,7 @@ $level=$dt_user[2];
     </head>
     <script>
         var level_user = "<?php echo $level; ?>";
+        var user = "<?php echo $_SESSION['user']; ?>";    
     </script>
     <body class="sb-nav-fixed">
     <body class="sb-nav-fixed">
@@ -1275,8 +1276,8 @@ $level=$dt_user[2];
         <script src="
         js/scripts.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.min.js" crossorigin="anonymous"></script>
-        <script src="../assets/demo/chart-area-demo.js"></script>
-        <script src="../assets/demo/chart-bar-demo.js"></script>
+        <!-- <script src="../assets/demo/chart-area-demo.js"></script> -->
+        <!-- <script src="../assets/demo/chart-bar-demo.js"></script> -->
         <script src="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/umd/simple-datatables.min.js" crossorigin="anonymous"></script>
         <script src="../js/datatables-simple-demo.js"></script>
     </body>

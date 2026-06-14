@@ -8,13 +8,14 @@ $koneksi = $air->koneksi(); // KUNCI MUTLAK: Ini yang kamu hilangkan!
 
 if (isset($_POST['p'])) {
     $p = $_POST['p'];
-    $bulan = $_POST['t']; // Format dari JS: "2025-01"
+   
     $user    = $_SESSION['user'];            // 1. Tangkap username dari brankas sesi
     $dt_user = $air->dt_user($user);         // 2. Minta func.php mencari profil lengkap user ini di database
     $level   = $dt_user[2];                  // 3. Ekstrak 'level' jabatannya dari array database
 
     if ($p == "summary") {
         $data = array();
+        $bulan = $_POST['t'];
 
         // ==========================================
         // JALUR 1: ADMIN & PETUGAS
@@ -93,5 +94,32 @@ if (isset($_POST['p'])) {
         // Kirim semua array $data ke Javascript dalam bentuk JSON
         echo json_encode($data);
     }
+ 
+        elseif ($p=="chart_bar") {
+            $yuser=$_POST['y'];
+            $response = array(); // Inisialisasi awal
+            
+            
+        $q = mysqli_query($koneksi, "SELECT MONTH(tgl) as bln, pemakaian FROM pemakaian WHERE username='$yuser'");
+            while ($d=mysqli_fetch_assoc($q)) {
+                $response[]=$air->bln($d['bln']);   
+                $response[]=$d['pemakaian'];
+
+            }
+            echo json_encode($response);
+
+    }   elseif ($p=="chart_line") {
+            $yuser=$_POST['y'];
+            $response = array(); // Inisialisasi awal
+            
+            
+        $q = mysqli_query($koneksi, "SELECT MONTH(tgl) as bln, tagihan FROM pemakaian WHERE username='$yuser'");
+            while ($d=mysqli_fetch_assoc($q)) {
+                $response[]=$air->bln($d['bln']);   
+                $response[]=$d['tagihan'];
+
+            }
+            echo json_encode($response);
+}
 }
 ?>
