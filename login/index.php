@@ -552,20 +552,29 @@ $level=$dt_user[2];
                             // echo "<BR> setelah session_destroy: sesi user: ".$_SESSION['user']." sesi pass: ".$_SESSION['pass'];
                             ?>
                         
-                        <div class="row mb-4" id="pilih_waktu">
+                       <div class="row mb-4" id="pilih_waktu">
                             <div class="col-xl-3 col-md-12">
                                 <label for="sel1" class="form-label">Silahkan Pilih Waktu:</label>
+                                <?php
+                                // KUNCI MUTLAK JAM SERVER: Deteksi bulan berjalan saat ini secara riil (Juni)
+                                $bln_sekarang_riil = date("Y-m"); 
+                                ?>
                                 <select class="form-select" id="sel1" name="pilih_waktu">
-                                    <option value="">Bulan</option>
+                                    <!-- <option value="">Bulan</option> -->
                                     <?php
                                     for($i=1; $i<=12; $i++) {
                                         $bulan_angka = ($i < 10) ? "0".$i : $i;
-                                        echo "<option value='".date("Y")."-".$bulan_angka."'>".$air->bln($i)." ".date("Y")."</option>";
+                                        $nilai_opsi = date("Y") . "-" . $bulan_angka;
+                                        
+                                        // SINKRONISASI JAM SERVER: Jika cocok dengan bulan sekarang (Juni), pasang SELECTED otomatis!
+                                        $pasang_selected = ($nilai_opsi == $bln_sekarang_riil) ? "selected" : "";
+                                        
+                                        echo "<option value='" . $nilai_opsi . "' " . $pasang_selected . ">" . $air->bln($i) . " " . date("Y") . "</option>";
                                     }
                                     ?>
                                 </select>
                             </div>
-                        </div>
+                        </div> 
 
                        <div class="row" id="summary">
                             <div class="col-xl-3 col-md-6">
@@ -580,8 +589,10 @@ $level=$dt_user[2];
                                     </div>
                                     <div class="card-footer">
                                         <?php 
-                                        if($level == "warga") echo "Waktu Pencatatan"; 
-                                        else echo "Pelanggan"; 
+                                        if($level == "warga") 
+                                            echo "Waktu Pencatatan Bulan Ini"; 
+                                        else 
+                                            echo "Pelanggan"; 
                                         ?>
                                     </div>
                                 </div>
@@ -597,7 +608,7 @@ $level=$dt_user[2];
                                     if($level == "bendahara") 
                                             echo "Pemasukan (Rp)"; 
                                         elseif($level == "warga") 
-                                            echo "Pemakaian Air"; 
+                                            echo "Pemakaian Air Bulan Ini (m³)"; 
                                     else echo "Pemakaian Air"; 
                                         ?>
                                     </div>
@@ -619,7 +630,7 @@ $level=$dt_user[2];
                                     if($level == "bendahara") 
                                             echo "Sudah Lunas"; 
                                         elseif($level == "warga") 
-                                            echo "Jumlah Tagihan (Rp)"; 
+                                            echo "Jumlah Tagihan Bulan Ini (Rp)"; 
                                     else echo "Sudah Dicatat"; 
                                         ?>
                                     </div>
@@ -638,37 +649,37 @@ $level=$dt_user[2];
                                     </div>
                                     <div class="card-footer">
                                         <?php 
-                                        if($level == "bendahara") echo "Belum Bayar"; 
-                                        elseif($level == "warga") echo "Status Tagihan"; 
+                                        if($level == "bendahara") 
+                                            echo "Belum Bayar"; 
+                                        elseif($level == "warga") 
+                                            echo "Status Tagihan Bulan Ini"; 
                                         else echo "Belum Dicatat"; 
                                         ?>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                           <div class="row" id="chart">
 
-                           <div class="col-xl-6 col-md-12">
-                                <div class="card mb-4">
-                                    <div class="card-header">
-                                        <i class="fas fa-chart-bar me-1"></i>
-                                        Grafik Pemakaian Air (m<sup>3</sup>)
-                                    </div>
-                                    <div class="card-body"><canvas id="myBarChart" width="100%" height="40"></canvas></div>
-                                </div>
-                            </div>
-                        
+                          <div class="row" id="chart">
+                        <?php if($level == "admin" || $level == "bendahara" || $level == "petugas") { ?>
+                            <div class="col-xl-6 col-md-12"><div class="card mb-4"><div class="card-header"><i class="fas fa-chart-area text-primary"></i> Total Pemakaian Air Per Bulan <span id="tot_pemakaian" class="fw-bold text-primary"></span></div><div class="card-body"><canvas id="chPemakaian" width="100%" height="40"></canvas></div></div></div>
+                            <div class="col-xl-6 col-md-12"><div class="card mb-4"><div class="card-header"><i class="fas fa-chart-pie text-danger"></i> Pelanggan (Rumah Tangga vs Kos)</div><div class="card-body"><canvas id="chTipe" width="100%" height="40"></canvas></div></div></div>
+                            <div class="col-xl-6 col-md-12"><div class="card mb-4"><div class="card-header"><i class="fas fa-chart-bar text-success"></i> Pelanggan Sudah Dicatat</div><div class="card-body"><canvas id="chTercatat" width="100%" height="40"></canvas></div></div></div>
+                            <div class="col-xl-6 col-md-12"><div class="card mb-4"><div class="card-header"><i class="fas fa-chart-bar text-danger"></i> Pelanggan Belum Dicatat</div><div class="card-body"><canvas id="chBlmTercatat" width="100%" height="40"></canvas></div></div></div>
+                        <?php } ?>
 
-                            <div class="col-xl-6 col-md-12">
-                                <div class="card mb-4">
-                                    <div class="card-header">
-                                        <i class="fas fa-chart-area me-1"></i>
-                                        Grafik Tagihan Air (Rp)
-                                    </div>
-                                    <div class="card-body"><canvas id="myAreaChart" width="100%" height="40"></canvas></div>
-                                </div>
-                            </div>
-                        </div>
+                        <?php if($level == "admin" || $level == "bendahara") { ?>
+                            <div class="col-xl-6 col-md-12"><div class="card mb-4"><div class="card-header"><i class="fas fa-chart-area text-success"></i> Total Tagihan Air Per Bulan <span id="tot_tagihan" class="fw-bold text-success"></span></div><div class="card-body"><canvas id="chTagihan" width="100%" height="40"></canvas></div></div></div>
+                            <div class="col-xl-6 col-md-12"><div class="card mb-4"><div class="card-header"><i class="fas fa-chart-area text-primary"></i> Total Pemasukan Lunas Per Bulan</div><div class="card-body"><canvas id="chPemasukan" width="100%" height="40"></canvas></div></div></div>
+                            <div class="col-xl-6 col-md-12"><div class="card mb-4"><div class="card-header"><i class="fas fa-chart-bar text-success"></i> Tagihan Sudah Lunas</div><div class="card-body"><canvas id="chLunas" width="100%" height="40"></canvas></div></div></div>
+                            <div class="col-xl-6 col-md-12"><div class="card mb-4"><div class="card-header"><i class="fas fa-chart-bar text-danger"></i> Tagihan Belum Lunas</div><div class="card-body"><canvas id="chBlmLunas" width="100%" height="40"></canvas></div></div></div>
+                        <?php } ?>
+
+                        <?php if($level == "warga") { ?>
+                            <div class="col-xl-6 col-md-12"><div class="card mb-4"><div class="card-header"><i class="fas fa-chart-bar text-primary "></i> Pemakaian Air Pribadi <span id="tot_pemakaian_w" class="fw-bold text-primary"></span></div><div class="card-body"><canvas id="chPemakaianWarga" width="100%" height="40"></canvas></div></div></div>
+                            <div class="col-xl-6 col-md-12"><div class="card mb-4"><div class="card-header"><i class="fas fa-chart-area text-success"></i> Tagihan Air Pribadi <span id="tot_tagihan_w" class="fw-bold text-success"></span></div><div class="card-body"><canvas id="chTagihanWarga" width="100%" height="40"></canvas></div></div></div>
+                        <?php } ?>
+                    </div>
                             
                     </div>
                         <div class="card mb-4" id="user_add">
@@ -676,54 +687,52 @@ $level=$dt_user[2];
                                 <i class="fa-solid fa-user-plus fa-fade text-success me-2"></i> Tambah User
                             </div>
                             <div class="card-body">
-                                <form action="" method="post" id="user_form">
-                                    
-            
-            <div class="mb-3">
-                <label for="username">Username</label>
-                <input type="text" class="form-control" id="username" name="yuser" value="<?php echo isset($_POST['yuser']) ? $_POST['yuser'] : '' ?>" required>
-            </div>
-            
-            <div class="mb-3">
-                <label for="password">Password</label>
-                <input type="password" class="form-control" id="password" name="passwet" value="<?php echo isset($_POST['passwet']) ? $_POST['passwet'] : '' ?>" required>
-            </div>
-            
-            <div class="mb-3">
-                <label for="nama">Nama</label>
-                <input type="text" class="form-control" id="nama" name="nama" value="<?php echo isset($_POST['nama']) ? $_POST['nama'] : '' ?>" required>
-            </div>
-            
-           <div class="mb-3">
-                <label for="alamat">Alamat</label>
-                <textarea class="form-control" id="alamat" name="alamat" required><?php echo isset($_POST['alamat']) ? $_POST['alamat'] : '' ?></textarea>
-            </div>
-            
-            <div class="mb-3">
-                <label for="kota">Kota</label>
-                <input type="text" class="form-control" id="kota" name="kota" value="<?php echo isset($_POST['kota']) ? $_POST['kota'] : '' ?>" required>
-            </div>
-            
-            <div class="mb-3">
-                <label for="telepon">Telepon</label>
-                <input type="text" class="form-control" id="telepon" name="tlp" value="<?php echo isset($_POST['tlp']) ? $_POST['tlp'] : '' ?>" required>
-            </div>
-            
-            <div class="mb-3">
-                <label for="level">Level</label>
-                <select class="form-select" id="level" name="level" required>
-                    <?php
-                    // Looping PHP untuk memunculkan pilihan level
-                    $level_array = array('admin', 'bendahara', 'petugas', 'warga');
-                    foreach ($level_array as $lv2) {
-                        if($level==$lv2) $selected= "SELECTED"; 
-                        else $selected="";
-                        // ucwords digunakan agar huruf pertama menjadi kapital di tampilan, namun valuenya tetap huruf kecil
-                        echo "<option value='$lv2' $selected>" . ucwords($lv2) . "</option>";
-                    }
-                    ?>
-                </select>
-            </div>
+                                <form action="" method="post" id="user_form">           
+                                <div class="mb-3">
+                                    <label for="username">Username</label>
+                                    <input type="text" class="form-control" id="username" name="yuser" value="<?php echo isset($_POST['yuser']) ? $_POST['yuser'] : '' ?>" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="password">Password</label>
+                                    <input type="password" class="form-control" id="password" name="passwet" value="<?php echo isset($_POST['passwet']) ? $_POST['passwet'] : '' ?>" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="nama">Nama</label>
+                                    <input type="text" class="form-control" id="nama" name="nama" value="<?php echo isset($_POST['nama']) ? $_POST['nama'] : '' ?>" required>
+                                </div>
+                                
+                            <div class="mb-3">
+                                    <label for="alamat">Alamat</label>
+                                    <textarea class="form-control" id="alamat" name="alamat" required><?php echo isset($_POST['alamat']) ? $_POST['alamat'] : '' ?></textarea>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="kota">Kota</label>
+                                    <input type="text" class="form-control" id="kota" name="kota" value="<?php echo isset($_POST['kota']) ? $_POST['kota'] : '' ?>" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="telepon">Telepon</label>
+                                    <input type="text" class="form-control" id="telepon" name="tlp" value="<?php echo isset($_POST['tlp']) ? $_POST['tlp'] : '' ?>" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="level">Level</label>
+                                    <select class="form-select" id="level" name="level" required>
+                                        <?php
+                                        // Looping PHP untuk memunculkan pilihan level
+                                        $level_array = array('admin', 'bendahara', 'petugas', 'warga');
+                                        foreach ($level_array as $lv2) {
+                                            if($level==$lv2) $selected= "SELECTED"; 
+                                            else $selected="";
+                                            // ucwords digunakan agar huruf pertama menjadi kapital di tampilan, namun valuenya tetap huruf kecil
+                                            echo "<option value='$lv2' $selected>" . ucwords($lv2) . "</option>";
+                                        }
+                                        ?>
+                                    </select>
+                                </div>
             
             <div class="mb-3">
                 <label for="tipe">Tipe</label>

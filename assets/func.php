@@ -1,9 +1,23 @@
 <?php
 class kelas_air {
+    
+    // 1. Buat brankas penyimpan status koneksi (Nilai awalnya kosong)
+    public $kon = null; 
+
     function koneksi() {
-        $koneksi=mysqli_connect("localhost","root","","tkbmyid_db_kel01");
-        return $koneksi;
+        // 2. Jika brankas masih kosong (belum ada koneksi), BUKA KONEKSI BARU
+        if ($this->kon == null) {
+            $this->kon = mysqli_connect("127.0.0.1", "root", "", "tkbmyid_db_kel01");
+            
+            // Opsional tapi penting untuk keamanan charset
+            mysqli_set_charset($this->kon, "utf8mb4");
+        }
+        
+        // 3. Jika brankas sudah ada isinya, KEMBALIKAN KONEKSI YANG SAMA
+        return $this->kon;
     }
+
+    // ... (Fungsi dt_user, dt_tarif, tgl_balik, dll BIARKAN SAMA PERSIS, JANGAN DIUBAH)
 
     function dt_user($sesi_user) {
         $q=mysqli_query($this->koneksi(), "SELECT nama,kota,level FROM login WHERE username='$sesi_user'");

@@ -148,179 +148,105 @@ $(document).ready(function () {
     $("#pilih_waktu select[name='pilih_waktu']").on("change", function () {
       var bln = $(this).val();
 
-      if (bln == "") {
-
-        $("#box1").text("orang");
-        $("#box2").text("m³");
-        $("#box3").text("orang");
-        $("#box4").text("orang");
-
-
-      } else {
-
-
-        $.ajax({
-          type: "post",
-          url: "../assets/ajax.php",
-          data: { p: "summary", t: bln },
-          dataType: "json"
+      // ==========================================
+      // SUMMARY: JALANKAN AJAX TANPA DI-BLOCK IF KOSONG
+      // ==========================================
+      $.ajax({
+        type: "post",
+        url: "../assets/ajax.php",
+        data: { p: "summary", t: bln },
+        dataType: "json"
+      })
+        .done(function (d) {
+          if (level_user === "admin" || level_user === "petugas") {
+            $("#box1").text(d[0].jml_pelanggan + " Orang");
+            $("#box2").text(d[1].total_pemakaian + " m³");
+            $("#box3").text(d[2].tercatat + " Warga");
+            $("#box4").text(d[3].belum_dicatat + " Warga");
+          }
+          else if (level_user === "bendahara") {
+            $("#box1").text(d[0].jml_pelanggan + " Orang");
+            $("#box2").text(d[1].total_pemasukan);
+            $("#box3").text(d[2].lunas + " Warga");
+            $("#box4").text(d[3].belum_bayar + " Warga");
+          }
+          else if (level_user === "warga") {
+            $("#box1").text(d[0].info);
+            $("#box2").text(d[1].info);
+            $("#box3").text(d[2].info);
+            $("#box4").text(d[3].info);
+          }
         })
-          .done(function (d) {
-            // d adalah array hasil kiriman json_encode dari ajax.php
+        .fail(function (xhr, status, error) {
+          console.log("Error Summary:", xhr.responseText);
+        });
 
-            if (level_user === "admin" || level_user === "petugas") {
-              $("#box1").text(d[0].jml_pelanggan + " Orang");
-              $("#box2").text(d[1].total_pemakaian + " m³");
-              $("#box3").text(d[2].tercatat + " Warga");
-              $("#box4").text(d[3].belum_dicatat + " Warga");
-            }
-            else if (level_user === "bendahara") {
-              $("#box1").text(d[0].jml_pelanggan + " Orang");
-              $("#box2").text(d[1].total_pemasukan);
-              $("#box3").text(d[2].lunas + " Warga");
-              $("#box4").text(d[3].belum_bayar + " Warga");
-            }
-            else if (level_user === "warga") {
-              $("#box1").text(d[0].info);
-              $("#box2").text(d[1].info);
-              $("#box3").text(d[2].info);
-              $("#box4").text(d[3].info);
-            }
-          })
-          .fail(function (xhr, status, error) {
-            console.log("Error Terjadi!");
-            console.log("Pesan Server:", xhr.responseText);
-          });
-      }
-
+      // ==========================================
+      // CHART: SUNTIKKAN 't: bln' AGAR GRAFIK BISA DISARING PER BULAN
+      // ==========================================
       $.ajax({
         type: "post",
         url: "../assets/ajax.php",
-        data: { p: "chart_bar", y: user },
+        data: { p: "semua_chart", t: bln }, // KUNCI UTAMA FILTER CHART
         dataType: "json"
-      })
-        .done(function (response) {
-          console.log("Data Chart Berhasil Masuk:", response);
-          sumbuX = response.filter((num, index) => index % 2 == 0);
-          sumbuY = response.filter((num, index) => index % 2 != 0);
-          // Set new default font family and font color to mimic Bootstrap's default styling
-          Chart.defaults.global.defaultFontFamily = '-apple-system,system-ui,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif';
-          Chart.defaults.global.defaultFontColor = '#292b2c';
+      }).done(function (res) {
+        Chart.defaults.global.defaultFontFamily = '-apple-system,system-ui,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif';
 
-          // Bar Chart Example
-          var ctx = document.getElementById("myBarChart");
-          var myLineChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-              labels: sumbuX,
-              datasets: [{
-                label: "Tagihan (Rp)",
-                backgroundColor: "rgba(2,117,216,1)",
-                borderColor: "rgba(2,117,216,1)",
-                data: sumbuY,
-              }],
-            },
-            options: {
-              scales: {
-                xAxes: [{
-                  time: {
-                    unit: 'month'
-                  },
-                  gridLines: {
-                    display: false
-                  },
-                  ticks: {
-                    maxTicksLimit: 6
-                  }
-                }],
-                yAxes: [{
-                  ticks: {
-                    min: 0,
-                    max: 300,
-                    maxTicksLimit: 5
-                  },
-                  gridLines: {
-                    display: true
-                  }
-                }],
-              },
-              legend: {
-                display: false
-              }
-            }
-          });
-        });
+        // Formula filter Array Ganjil-Genap 
+        const getX = arr => arr.filter((_, i) => i % 2 === 0);
+        const getY = arr => arr.filter((_, i) => i % 2 !== 0);
+        const sumVal = arr => arr.reduce((a, b) => Number(a) + Number(b), 0);
+        const formatRp = num => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(num);
 
-      $.ajax({
-        type: "post",
-        url: "../assets/ajax.php",
-        data: { p: "chart_line", y: user },
-        dataType: "json"
-      })
-        .done(function (response) {
-          console.log("Data Chart Berhasil Masuk:", response);
-          sumbuX = response.filter((num, index) => index % 2 == 0);
-          sumbuY = response.filter((num, index) => index % 2 != 0);
-          // Set new default font family and font color to mimic Bootstrap's default styling
-          Chart.defaults.global.defaultFontFamily = '-apple-system,system-ui,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif';
-          Chart.defaults.global.defaultFontColor = '#292b2c';
+        if (level_user === "admin" || level_user === "bendahara" || level_user === "petugas") {
+          if (res.pemakaian) {
+            let x = getX(res.pemakaian); let y = getY(res.pemakaian);
+            $("#tot_pemakaian").text("(Total: " + sumVal(y) + " m³)");
+            renderChart("chPemakaian", "line", x, y, "rgba(2,117,216,0.2)", "rgba(2,117,216,1)");
+          }
+          if (res.tipe_pelanggan) renderChart("chTipe", "pie", getX(res.tipe_pelanggan), getY(res.tipe_pelanggan), ["#211f9f", "#b2291f"], ["#211f9f", "#b2291f"]);
+          if (res.tercatat) renderChart("chTercatat", "bar", getX(res.tercatat), getY(res.tercatat), "rgba(40,167,69,1)", "rgba(40,167,69,1)");
+          if (res.belum_tercatat) renderChart("chBlmTercatat", "bar", getX(res.belum_tercatat), getY(res.belum_tercatat), "rgba(220,53,69,1)", "rgba(220,53,69,1)");
+        }
 
-          // Area Chart Example
-          var ctx = document.getElementById("myAreaChart");
-          var myLineChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-              labels: sumbuX,
-              datasets: [{
-                label: "Tagihan (Rp)",
-                lineTension: 0.3,
-                backgroundColor: "rgba(2,117,216,0.2)",
-                borderColor: "rgba(2,117,216,1)",
-                pointRadius: 5,
-                pointBackgroundColor: "rgba(2,117,216,1)",
-                pointBorderColor: "rgba(255,255,255,0.8)",
-                pointHoverRadius: 5,
-                pointHoverBackgroundColor: "rgba(2,117,216,1)",
-                pointHitRadius: 50,
-                pointBorderWidth: 2,
-                data: sumbuY,
-              }],
-            },
-            options: {
-              scales: {
-                xAxes: [{
-                  time: {
-                    unit: 'date'
-                  },
-                  gridLines: {
-                    display: false
-                  },
-                  ticks: {
-                    maxTicksLimit: 7
-                  }
-                }],
-                yAxes: [{
-                  ticks: {
-                    min: 0,
-                    max: 1000000,
-                    maxTicksLimit: 5
-                  },
-                  gridLines: {
-                    color: "rgba(0, 0, 0, .125)",
-                  }
-                }],
-              },
-              legend: {
-                display: false
-              }
-            }
+        if (level_user === "admin" || level_user === "bendahara") {
+          if (res.tagihan) {
+            let x = getX(res.tagihan); let y = getY(res.tagihan);
+            $("#tot_tagihan").text("(Total: " + formatRp(sumVal(y)) + ")");
+            renderChart("chTagihan", "line", x, y, "rgba(255,193,7,0.2)", "rgba(255,193,7,1)");
+          }
+          if (res.pemasukan) renderChart("chPemasukan", "line", getX(res.pemasukan), getY(res.pemasukan), "rgba(40,167,69,0.2)", "rgba(40,167,69,1)");
+          if (res.sdh_lunas) renderChart("chLunas", "bar", getX(res.sdh_lunas), getY(res.sdh_lunas), "rgba(2,117,216,1)", "rgba(2,117,216,1)");
+          if (res.blm_lunas) renderChart("chBlmLunas", "bar", getX(res.blm_lunas), getY(res.blm_lunas), "rgba(220,53,69,1)", "rgba(220,53,69,1)");
+        }
 
-
-          });
-        });
-
+        if (level_user === "warga") {
+          if (res.pemakaian_warga) {
+            let x = getX(res.pemakaian_warga); let y = getY(res.pemakaian_warga);
+            $("#tot_pemakaian_w").text("(Total: " + sumVal(y) + " m³)");
+            renderChart("chPemakaianWarga", "bar", x, y, "rgba(2,117,216,1)", "rgba(2,117,216,1)");
+          }
+          if (res.tagihan_warga) {
+            let x = getX(res.tagihan_warga); let y = getY(res.tagihan_warga);
+            $("#tot_tagihan_w").text("(Total: " + formatRp(sumVal(y)) + ")");
+            renderChart("chTagihanWarga", "line", x, y, "rgba(40,167,69,0.2)", "rgba(40,167,69,1)");
+          }
+        }
+      });
 
     }).change();
+    // Letakkan tepat di bawah blok "LOGIKA AJAX DASHBOARD ROLE-BASED"
+    var chartInst = {}; // Brankas instansi Chart global
+    function renderChart(id, type, x, y, bg, border) {
+      if (!document.getElementById(id)) return;
+      var ctx = document.getElementById(id).getContext('2d');
+      if (chartInst[id]) chartInst[id].destroy(); // Hancurkan chart usang jika di-refresh
+      chartInst[id] = new Chart(ctx, {
+        type: type,
+        data: { labels: x, datasets: [{ label: "Jumlah", backgroundColor: bg, borderColor: border, fill: true, data: y }] },
+        options: { legend: { display: false } }
+      });
+    }
 
 
     // SENSOR ALERT PHP (Memastikan form tidak tertutup grafik saat gagal simpan)
