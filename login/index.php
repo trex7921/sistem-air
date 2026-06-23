@@ -821,10 +821,9 @@ $level=$dt_user[2];
                                                     <td>$tipe</td>
                                                     <td>$status</td>
                                                     <td>
-                                                        <a href='index.php?p=user_edit&user=$user'><button type='button' class='btn btn-primary btn-sm'>Ubah</button></a>
-                                                        <button type='button' class='btn btn-danger btn-sm' data-bs-toggle='modal' data-bs-target='#myModal' data-user='$user'>Hapus</button>
-                                                        
-                                                    </td>
+    <a href='index.php?p=user_edit&user=$user'><button type='button' class='btn btn-outline-primary btn-sm'>Ubah</button></a>
+    <button type='button' class='btn btn-outline-danger btn-sm' data-bs-toggle='modal' data-bs-target='#myModal' data-user='$user'>Hapus</button>
+</td>
 
                                                 </tr>";
                                          }
@@ -904,10 +903,10 @@ $level=$dt_user[2];
                             <td>$tipe_tarif</td>
                             <td>$tarif</td>
                             <td>$status</td>
-                            <td>
-                                <a href='index.php?p=tarif_edit&id_tarif=$id_tarif'><button type='button' class='btn btn-primary btn-sm'>Ubah</button></a>
-                                <button type='button' class='btn btn-danger btn-sm' data-bs-toggle='modal' data-bs-target='#modalTarif' data-id='$id_tarif'>Hapus</button>
-                            </td>
+                           <td>
+    <a href='index.php?p=tarif_edit&id_tarif=$id_tarif'><button type='button' class='btn btn-outline-primary btn-sm'>Ubah</button></a>
+    <button type='button' class='btn btn-outline-danger btn-sm' data-bs-toggle='modal' data-bs-target='#modalTarif' data-id='$id_tarif'>Hapus</button>
+</td>
                           </tr>";
                 }
                 ?>
@@ -973,8 +972,9 @@ $level=$dt_user[2];
                     $selisih=$diff->days;
 
                     $tombol_aksi = ""; 
-                    $btn_html = "<a href='index.php?p=meter_edit&no=$no'><button type='button' class='btn btn-primary btn-sm'>Ubah</button></a>
-                                 <button type='button' class='btn btn-danger btn-sm' data-bs-toggle='modal' data-bs-target='#modalMeter' data-no='$no'>Hapus</button>";
+                    $btn_html = "<a href='index.php?p=meter_edit&no=$no'><button type='button' class='btn btn-outline-primary btn-sm'>Ubah</button></a>
+    <button type='button' class='btn btn-outline-danger btn-sm' data-bs-toggle='modal' data-bs-target='#modalMeter' data-no='$no'>Hapus</button>
+</td>";
                         
 
                     echo "
@@ -992,15 +992,15 @@ $level=$dt_user[2];
                             // untuk petugas
                             if ($level_login == "admin" || $level_login == "bendahara") {
                                 echo "<td>
-                            <a href='index.php?p=meter_edit&no=$no'><button type='button' class='btn btn-primary btn-sm'>Ubah</button></a>
-                                <button type='button' class='btn btn-danger btn-sm' data-bs-toggle='modal' data-bs-target='#modalMeter' data-no='$no'>Hapus</button>
-                            </td>";}
+    <a href='index.php?p=meter_edit&no=$no'><button type='button' class='btn btn-outline-primary btn-sm'>Ubah</button></a>
+    <button type='button' class='btn btn-outline-danger btn-sm' data-bs-toggle='modal' data-bs-target='#modalMeter' data-no='$no'>Hapus</button>
+</td>";}
                             
                             else {
                                 if ($selisih <= 30) {
                                 echo "<td>
-                            <a href='index.php?p=meter_edit&no=$no'><button type='button' class='btn btn-primary btn-sm'>Ubah</button></a>
-                                <button type='button' class='btn btn-danger btn-sm' data-bs-toggle='modal' data-bs-target='#modalMeter' data-no='$no'>Hapus</button>
+                            <a href='index.php?p=meter_edit&no=$no'><button type='button' class='btn btn-outline-primary btn-sm'>Ubah</button></a>
+                                <button type='button' class='btn btn-outline-danger btn-sm' data-bs-toggle='modal' data-bs-target='#modalMeter' data-no='$no'>Hapus</button>
                             </td>";}
                             else {
                                 echo "<td><span class='badge bg-secondary'>Terkunci</span></td>";
