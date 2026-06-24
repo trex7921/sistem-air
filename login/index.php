@@ -1,5 +1,6 @@
 <?php
 session_start();
+date_default_timezone_set('Asia/Jakarta');
 if(empty($_SESSION['user']) && empty($_SESSION['pass'])) {
     echo "<script>window.location.replace('../index.php')</script>";
 }
@@ -399,6 +400,8 @@ $level=$dt_user[2];
                                         $kd_tarif       = $air->user_to_idtarif($username);
                                         $tarif          = $air->id_tarif_to_tarif($kd_tarif);
                                         $status = $_POST['status_bayar'];
+                                        $bln_skrg = date('m');
+                                        $thn_skrg = date('Y');
                                         
 
                                         // Cek meter awal dan akhir valid (akhir harus lebih besar dari awal)
@@ -411,8 +414,7 @@ $level=$dt_user[2];
                                         }
                                         // sebulan input sekali
                                       // KUNCI MUTLAK: CEK DUPLIKAS I BULAN INI TERLEBIH DAHULU
-                                        $q_cek_bulan = mysqli_query($koneksi, "SELECT no FROM pemakaian WHERE username='$username' AND MONTH(tgl) = MONTH(CURRENT_DATE()) AND YEAR(tgl) = YEAR(CURRENT_DATE())");
-
+                                        $q_cek_bulan = mysqli_query($koneksi, "SELECT no FROM pemakaian WHERE username='$username' AND MONTH(tgl) = '$bln_skrg' AND YEAR(tgl) = '$thn_skrg'");
                                         // MESIN HANYA AKAN MEMILIH SALAH SATU DARI 3 KONDISI INI:
                                         if (mysqli_num_rows($q_cek_bulan) > 0) {
                                             // Kondisi 1: Ditolak karena bulan ini sudah ada
@@ -1112,52 +1114,67 @@ $level=$dt_user[2];
             }
         }
         ?>
-        <script>
-        // Kamus Data JSON yang sudah diperluas kapasitas informasinya
-        const riwayatMeter = <?php echo json_encode($data_last_meter); ?>;
+<script>
+// Kamus Data JSON yang sudah diperluas kapasitas informasinya
+const riwayatMeter = <?php echo json_encode($data_last_meter); ?>;
+
+document.querySelector('#meter_form #username').addEventListener('change', function() {
+    const userPilih = this.value;
+    const inputMeterAwal = document.getElementById('meter_awal');
+    const infoLastInput = document.getElementById('info_last_input');
+    const alertContainer = document.getElementById('js_alert_container');
+    
+    // Reset keadaan form
+    infoLastInput.innerHTML = "";
+    alertContainer.innerHTML = "";
+    
+    if(userPilih === "") {
+        inputMeterAwal.value = '';
+        inputMeterAwal.style.backgroundColor = '';
+        inputMeterAwal.readOnly = false; 
+        return;
+    }
+    
+    if(riwayatMeter[userPilih] !== undefined) {
+        const dataWarga = riwayatMeter[userPilih];
         
-        document.querySelector('#meter_form #username').addEventListener('change', function() {
-            const userPilih = this.value;
-            const inputMeterAwal = document.getElementById('meter_awal');
-            const infoLastInput = document.getElementById('info_last_input');
-            const alertContainer = document.getElementById('js_alert_container');
-            
-            // Reset keadaan form setiap terjadi perubahan dropdown
-            infoLastInput.innerHTML = "";
-            alertContainer.innerHTML = "";
-            inputMeterAwal.value = '';
-            inputMeterAwal.style.backgroundColor = '';
-            
-            if(userPilih === "") return;
-            
-            if(riwayatMeter[userPilih] !== undefined) {
-                const dataWarga = riwayatMeter[userPilih];
-                
-                // Mengisi otomatis Meter Awal dari data meter_akhir riwayat terbaru
-                inputMeterAwal.value = dataWarga.meter_akhir;
-                inputMeterAwal.style.backgroundColor = '#e8f0fe'; 
-                
-                // KOREKSI 1 & 2: Evaluasi Status Input Bulan Ini secara Real-Time
-                if(dataWarga.sudah_input_bulan_ini) {
-                    // Tampilkan info last input waktu bulan lalu
-                    infoLastInput.innerHTML = `<i class="fa-solid fa-clock text-warning"></i> Input terakhir bulan lalu: <b class="text-primary">${dataWarga.tgl_bulan_lalu}</b>`;
-                    
-                    // Munculkan alert PERINGATAN, tapi inputan tetap terbuka (bisa diisi sesuai koreksi dosen)
-                    alertContainer.innerHTML = `
-                        <div class="alert alert-warning alert-dismissible fade show m-0 animate_fade">
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            <strong>Peringatan:</strong> Warga ini sudah di input meter nya bulan ini!!.
-                        </div>`;
-                } else {
-                    // Jika belum input bulan ini, tampilkan info kapan terakhir dia menginput data
-                    infoLastInput.innerHTML = `<i class="fa-solid fa-clock text-success"></i> Input terakhir: <b class="text-success">${dataWarga.tgl_terakhir}</b>`;
-                }
-            } else {
-                // Kondisi jika data warga baru murni tidak memiliki riwayat di database pemakaian
-                infoLastInput.innerHTML = `<i class="fa-solid fa-circle-info text-info"></i> Warga baru: Belum ada riwayat input meteran sebelumnya.`;
-            }
-        });
-        </script>
+        // Isi otomatis dan KUNCI MATI inputannya via DOM
+        inputMeterAwal.value = dataWarga.meter_akhir;
+        inputMeterAwal.style.backgroundColor = '#e8f0fe'; 
+        inputMeterAwal.readOnly = true; // BUG FIX: Mengunci agar tidak bisa diubah
+        
+        // Evaluasi Status
+        // Evaluasi Status (PERBAIKAN JELAS UNTUK PRESENTASI)
+        if(dataWarga.sudah_input_bulan_ini) {
+            // Ubah menjadi tgl_terakhir agar menampilkan tanggal asli bulan Juni yang menyumbat database
+            infoLastInput.innerHTML = `<i class="fa-solid fa-clock text-danger"></i> Sudah tercatat bulan ini pada: <b class="text-danger">${dataWarga.tgl_terakhir}</b>`;
+            alertContainer.innerHTML = `
+                <div class="alert alert-danger alert-dismissible fade show m-0 animate_fade">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    <strong>Gagal:</strong> Pencatatan bulan Juni sudah dilakukan (${dataWarga.tgl_terakhir}). Tidak boleh ada data ganda!
+                </div>`;
+        } else {
+            // Jika belum ada data di bulan Juni, tampilkan histori terakhirnya secara normal
+            infoLastInput.innerHTML = `<i class="fa-solid fa-clock text-success"></i> Input terakhir: <b class="text-success">${dataWarga.tgl_terakhir}</b>`;
+        }
+    } else {
+        // Jika Warga Baru murni
+        inputMeterAwal.value = '';
+        inputMeterAwal.style.backgroundColor = '';
+        inputMeterAwal.readOnly = false; // BUKA KUNCI JIKA WARGA BARU
+        infoLastInput.innerHTML = `<i class="fa-solid fa-circle-info text-info"></i> Warga baru: Belum ada riwayat input meteran sebelumnya.`;
+    }
+});
+
+// BUG FIX: Pemicu (Trigger) Otomatis setelah halaman reload akibat error server
+window.addEventListener('DOMContentLoaded', (event) => {
+    const usernameSelect = document.querySelector('#meter_form #username');
+    if(usernameSelect && usernameSelect.value !== "") {
+        // Paksa JavaScript memutar ulang logika perubahan dropdown
+        usernameSelect.dispatchEvent(new Event('change'));
+    }
+});
+</script>
 
              </form>
         </div>
