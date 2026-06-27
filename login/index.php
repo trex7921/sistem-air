@@ -869,7 +869,7 @@ $level=$dt_user[2];
                     <label class="form-check-label" for="status_tdk">Tidak Aktif</label>
                 </div>
             </div>
-            <div class="mt-3"
+            <div class="mt-3">
                 <button type="submit" class="btn btn-primary" name="tombol" value="tarif_add">Simpan</button>
             </div>
         </form>
@@ -972,6 +972,7 @@ $level=$dt_user[2];
                     $tgl_sekarang=date_create();
                     $diff=date_diff($tgl_tabel,$tgl_sekarang);
                     $selisih=$diff->days;
+                    
 
                     $tombol_aksi = ""; 
                     $btn_html = "<a href='index.php?p=meter_edit&no=$no'><button type='button' class='btn btn-outline-primary btn-sm'>Ubah</button></a>
@@ -1115,62 +1116,97 @@ $level=$dt_user[2];
         }
         ?>
 <script>
-// Kamus Data JSON yang sudah diperluas kapasitas informasinya
+// Ambil status kontekstual asli dari PHP agar JavaScript tidak amnesia Role
+const currentLevel = "<?php echo $level; ?>";
+const currentParam = "<?php echo isset($_GET['p']) ? $_GET['p'] : ''; ?>";
 const riwayatMeter = <?php echo json_encode($data_last_meter); ?>;
 
 document.querySelector('#meter_form #username').addEventListener('change', function() {
     const userPilih = this.value;
     const inputMeterAwal = document.getElementById('meter_awal');
+    const inputMeterAkhir = document.getElementById('meter_akhir');
     const infoLastInput = document.getElementById('info_last_input');
     const alertContainer = document.getElementById('js_alert_container');
     
-    // Reset keadaan form
+    // Reset keadaan form info
     infoLastInput.innerHTML = "";
     alertContainer.innerHTML = "";
     
+    // BARIKADE 1: KUNCI MUTLAK EDIT MODE
+    // Jika sedang dalam mode edit data lama, STOP dan dilarang keras menimpa/mengosongkan angka!
+    if (currentParam === 'meter_edit') {
+        if (currentLevel === 'bendahara') {
+            inputMeterAwal.readOnly = true;
+            inputMeterAwal.style.backgroundColor = '#e8f0fe';
+            inputMeterAkhir.readOnly = true;
+            inputMeterAkhir.style.backgroundColor = '#e8f0fe';
+        }
+        return; // Keluar dari fungsi, amankan nilai asli yang dicetak PHP dari database!
+    }
+    
     if(userPilih === "") {
-        inputMeterAwal.value = '';
-        inputMeterAwal.style.backgroundColor = '';
-        inputMeterAwal.readOnly = false; 
+        if (currentLevel !== 'bendahara') {
+            inputMeterAwal.value = '';
+            inputMeterAwal.style.backgroundColor = '';
+            inputMeterAwal.readOnly = false; 
+            inputMeterAkhir.value = '';
+        }
         return;
     }
     
     if(riwayatMeter[userPilih] !== undefined) {
         const dataWarga = riwayatMeter[userPilih];
         
-        // Isi otomatis dan KUNCI MATI inputannya via DOM
+        // Logika ini HANYA berjalan di mode METER_ADD (Tambah Data Baru)
         inputMeterAwal.value = dataWarga.meter_akhir;
         inputMeterAwal.style.backgroundColor = '#e8f0fe'; 
-        inputMeterAwal.readOnly = true; // BUG FIX: Mengunci agar tidak bisa diubah
+        inputMeterAwal.readOnly = true; 
         
-        // Evaluasi Status
-        // Evaluasi Status (PERBAIKAN JELAS UNTUK PRESENTASI)
+        // Meter akhir dipaksa KOSONG bersih saat tambah data baru agar bisa diketik petugas
+        if (currentLevel !== 'bendahara') {
+            inputMeterAkhir.value = ''; 
+            inputMeterAkhir.readOnly = false; 
+            inputMeterAkhir.style.backgroundColor = '';
+        }
+        
+        // Evaluasi Status Peringatan Duplikat Kalender
         if(dataWarga.sudah_input_bulan_ini) {
-            // Ubah menjadi tgl_terakhir agar menampilkan tanggal asli bulan Juni yang menyumbat database
             infoLastInput.innerHTML = `<i class="fa-solid fa-clock text-danger"></i> Sudah tercatat bulan ini pada: <b class="text-danger">${dataWarga.tgl_terakhir}</b>`;
             alertContainer.innerHTML = `
-                <div class="alert alert-danger alert-dismissible fade show m-0 animate_fade">
+                <div class="alert alert-danger alert-dismissible fade show m-0 animate_fade" id="alert-meter">
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     <strong>Gagal:</strong> Pencatatan bulan Juni sudah dilakukan (${dataWarga.tgl_terakhir}). Tidak boleh ada data ganda!
                 </div>`;
         } else {
-            // Jika belum ada data di bulan Juni, tampilkan histori terakhirnya secara normal
             infoLastInput.innerHTML = `<i class="fa-solid fa-clock text-success"></i> Input terakhir: <b class="text-success">${dataWarga.tgl_terakhir}</b>`;
         }
     } else {
-        // Jika Warga Baru murni
-        inputMeterAwal.value = '';
-        inputMeterAwal.style.backgroundColor = '';
-        inputMeterAwal.readOnly = false; // BUKA KUNCI JIKA WARGA BARU
+        // Jika Warga Baru murni tanpa riwayat
+        if (currentLevel !== 'bendahara') {
+            inputMeterAwal.value = '';
+            inputMeterAwal.style.backgroundColor = '';
+            inputMeterAwal.readOnly = false; 
+            inputMeterAkhir.value = '';
+            inputMeterAkhir.readOnly = false;
+            inputMeterAkhir.style.backgroundColor = '';
+        }
         infoLastInput.innerHTML = `<i class="fa-solid fa-circle-info text-info"></i> Warga baru: Belum ada riwayat input meteran sebelumnya.`;
     }
 });
 
-// BUG FIX: Pemicu (Trigger) Otomatis setelah halaman reload akibat error server
+// BARIKADE 2: Pemicu otomatis saat komponen DOM selesai dimuat
 window.addEventListener('DOMContentLoaded', (event) => {
     const usernameSelect = document.querySelector('#meter_form #username');
+    
+    // Kunci paksa di detik pertama jika aktornya Bendahara
+    if (currentLevel === 'bendahara') {
+        document.getElementById('meter_awal').readOnly = true;
+        document.getElementById('meter_awal').style.backgroundColor = '#e8f0fe';
+        document.getElementById('meter_akhir').readOnly = true;
+        document.getElementById('meter_akhir').style.backgroundColor = '#e8f0fe';
+    }
+
     if(usernameSelect && usernameSelect.value !== "") {
-        // Paksa JavaScript memutar ulang logika perubahan dropdown
         usernameSelect.dispatchEvent(new Event('change'));
     }
 });
