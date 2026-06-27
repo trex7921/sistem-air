@@ -16,7 +16,7 @@ $(document).ready(function () {
 
   // add user
 
-  if (e[1] == "user") {
+  if (e[1] == "user" || e[1] == "user_edit&user") {
     $("#summary, #chart, #pilih_waktu, #user_add").hide();
     $("#user_list").show();
 
