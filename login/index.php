@@ -26,19 +26,20 @@ $level=$dt_user[2];
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
         <meta name="description" content="" />
         <meta name="author" content="" />
-        <title>Dashboard - SB Admin</title>
+        <title>Si-Air | Dashboard</title>
+        <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml" />
         <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />
         <link href="../css/styles.css" rel="stylesheet" />
         <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
         <script src="../js/air.js"></script>
     </head>
-    </head>
+    
     <script>
         var level_user = "<?php echo $level; ?>";
         var user = "<?php echo $_SESSION['user']; ?>";    
     </script>
-    <body class="sb-nav-fixed">
+
     <body class="sb-nav-fixed">
         <nav class="sb-topnav navbar navbar-expand navbar-dark bg-dark">
             <!-- Navbar Brand-->
@@ -87,12 +88,12 @@ $level=$dt_user[2];
                              <div class="sb-nav-link-icon"><i class="fa-solid  fa-file-invoice  fa-shake text-warning"></i></div>
                                 Pemakaian Warga
                             </a>
-                            </a>
+                            
                              <a class="nav-link" href="index.php?p=manajemen_tarif_air">
                              <div class="sb-nav-link-icon"><i class="fa-solid fa-money-bill-wave fa-beat text-success"></i></div>
                                 Tarif Air Warga
                             </a>
-                            </a>
+
                              <!-- <a class="nav-link" href="index.php?p=infografis_warga">
                              <div class="sb-nav-link-icon"><i class="fa-regular fa-chart-bar fa-fade text-danger"></i></div>
                                 Infografis Warga
@@ -109,17 +110,17 @@ $level=$dt_user[2];
                              <div class="sb-nav-link-icon"><i class="fa-solid fa-money-bill-wave fa-beat text-success"></i></div>
                                 Tagihan Warga
                             </a> -->
-                            </a>
+                            
                               <a class="nav-link" href="index.php?p=manajemen_tarif_air">
                              <div class="sb-nav-link-icon"><i class="fa-solid fa-hand fa-shake text-success"></i></div>
                                 Manajemen Tarif Air
                             </a>
-                            </a>
+                            
                              <!-- <a class="nav-link" href="index.php?p=infografis_tagihan_warga">
                              <div class="sb-nav-link-icon"><i class="fa-solid fa-eye fa-beat-fade text-info"></i></div>
                                 Infografis Tagihan Warga
                             </a> -->
-                            </a>
+                            
                            
                             <?php 
                             } elseif($level == "petugas") { 
@@ -299,7 +300,7 @@ $level=$dt_user[2];
             <strong>Username</strong> SUDAH digunakan!...
         </div>";
 }
-                                    } elseif($t=="user_edit") {
+                                    }  elseif($t=="user_edit") {
 
                                         $user   = $_POST['yuser'];
                                         $pass   = $_POST['passwet'];
@@ -307,43 +308,54 @@ $level=$dt_user[2];
                                         $alamat = $_POST['alamat'];
                                         $kota   = $_POST['kota'];
                                         $tlp    = $_POST['tlp'];
-                                        $level  = $_POST['level'];
+                                        $level_form  = $_POST['level']; // Menggunakan nama terisolasi biar gak bentrok
                                         $tipe   = $_POST['tipe'];
                                         $status = $_POST['status'];
 
-                                        // CEK PASSWORD LAMA DI DATABASE [cite: 2]
+                                        // CEK PASSWORD LAMA DI DATABASE
                                         $q_cp = mysqli_query($koneksi, "SELECT password FROM login WHERE username='$user'");
                                         $d_cp = mysqli_fetch_row($q_cp);
-                                        $pass_db = $d_cp[0]; // [cite: 3]
+                                        $pass_db = $d_cp[0];
 
-                                        // LOGIKA PERCABANGAN PASSWORD [cite: 3]
+                                        // LOGIKA PERCABANGAN PASSWORD
                                         if($pass == $pass_db) {
-                                            // Jika tidak ada perubahan password
-                                            mysqli_query($koneksi, "UPDATE login SET nama='$nama', alamat='$alamat', kota='$kota', tlp='$tlp', level='$level', tipe='$tipe', status='$status' WHERE username='$user'");
+                                            mysqli_query($koneksi, "UPDATE login SET nama='$nama', alamat='$alamat', kota='$kota', tlp='$tlp', level='$level_form', tipe='$tipe', status='$status' WHERE username='$user'");
                                         } else {
-                                            // Jika password diubah, lakukan hashing [cite: 3]
                                             $pass2 = password_hash($pass, PASSWORD_DEFAULT);
-                                            mysqli_query($koneksi, "UPDATE login SET password='$pass2', nama='$nama', alamat='$alamat', kota='$kota', tlp='$tlp', level='$level', tipe='$tipe', status='$status' WHERE username='$user'");
+                                            mysqli_query($koneksi, "UPDATE login SET password='$pass2', nama='$nama', alamat='$alamat', kota='$kota', tlp='$tlp', level='$level_form', tipe='$tipe', status='$status' WHERE username='$user'");
                                         }
 
-                                        // ALERT NOTIFIKASI
+                                        // PERBAIKAN 1: Paksa terpental balik ke halaman list user biar gak double submit
                                         if (mysqli_affected_rows($koneksi) > 0) {
-                                            echo "<div class='alert alert-success alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button><strong>Data</strong> BERHASIL di UPDATE lekk...</div>";
+                                            $_SESSION['res_user'] = 'sukses_edit';
+                                            echo "<script>window.location.replace('index.php?p=user');</script>";
+                                            exit();
                                         } else {
-                                            echo "<div class='alert alert-primary alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button><strong>Data</strong> tidak ada perubahan.</div>"; // [cite: 5]
+                                            $_SESSION['res_user'] = 'tanpa_perubahan';
+                                            echo "<script>window.location.replace('index.php?p=user');</script>"; 
+                                            exit();
                                         }
                
-                                        } elseif($t=="user_hapus") { // 
-                                        $user = $_POST['yuser']; // 
+                                    } elseif($t=="user_hapus") { 
+                                        $user = $_POST['yuser']; 
                                         
-                                        // Perintah saklar hapus dari database
-                                        mysqli_query($koneksi, "DELETE FROM login WHERE username='$user'"); // 
+                                        // PERBAIKAN 4 (ANTI-HANTU): Bantai data anak (pemakaian) dulu sebelum akunnya dihapus
+                                        mysqli_query($koneksi, "DELETE FROM pemakaian WHERE username='$user'"); 
+                                        
+                                        // Baru bantai akun induknya
+                                        mysqli_query($koneksi, "DELETE FROM login WHERE username='$user'"); 
                                         
                                         if (mysqli_affected_rows($koneksi) > 0) {
-                                            echo "<div class='alert alert-success alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button><strong>User</strong> BERHASIL dihapus lekk...</div>";
+                                            $_SESSION['res_user'] = 'sukses_hapus';
+                                            echo "<script>window.location.replace('index.php?p=user');</script>";
+                                            exit();
                                         } else {
-                                            echo "<div class='alert alert-danger alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button><strong>User</strong> GAGAL dihapus lekk...</div>"; // 
+                                            $_SESSION['res_user'] = 'gagal_hapus';
+                                            echo "<script>window.location.replace('index.php?p=user');</script>";
+                                            exit();
                                         }
+                                    
+                                    
                                     
                                     
                                         } elseif($t == "tarif_add") {
@@ -368,7 +380,6 @@ $level=$dt_user[2];
 
                                     
                                       } elseif($t == "tarif_edit") {
-                                        // Perhatikan: ID diambil dari input hidden (id_tarif_lama) yang disuntikkan oleh JS
                                         $id_tarif      = $_POST['id_tarif_lama']; 
                                         $tipe_tarif    = $_POST['tipe_tarif'];
                                         $tarif         = $_POST['tarif'];
@@ -376,12 +387,16 @@ $level=$dt_user[2];
 
                                         mysqli_query($koneksi, "UPDATE tarif SET tipe_tarif='$tipe_tarif', tarif='$tarif', status='$status' WHERE id_tarif='$id_tarif'");
                                         
+                                        // PERBAIKAN 2: Paksa Redirect Tarif
                                         if (mysqli_affected_rows($koneksi) > 0) {
-                                            echo "<div class='alert alert-success alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button>Data Tarif BERHASIL diubah lekk....</div>";
+                                            $_SESSION['res_tarif'] = 'sukses_edit';
+                                            echo "<script>window.location.replace('index.php?p=manajemen_tarif_air');</script>";
+                                            exit();
                                         } else {
-                                            echo "<div class='alert alert-primary alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button>Data Tarif tidak ada perubahan lekk...</div>"; 
+                                            $_SESSION['res_tarif'] = 'tanpa_perubahan';
+                                            echo "<script>window.location.replace('index.php?p=manajemen_tarif_air');</script>"; 
+                                            exit();
                                         }
-
                                     
                                        } elseif($t == "tarif_hapus") { 
                                         $id_tarif = $_POST['id_tarif']; 
@@ -453,6 +468,7 @@ $level=$dt_user[2];
                                         } else {
                                             mysqli_query($koneksi, "UPDATE pemakaian SET meter_awal='$meter_awal', meter_akhir='$meter_akhir', pemakaian='$pemakaian', tagihan='$tagihan', status='$status' WHERE no='$no'");
                                             
+                                            // PERBAIKAN 3: Paksa Redirect Meteran
                                             if (mysqli_affected_rows($koneksi) > 0) {
                                                 $_SESSION['res_meter'] = 'sukses_edit';
                                                 echo "<script>window.location.replace('index.php?p=catat_edit_meter');</script>";
@@ -785,6 +801,21 @@ $level=$dt_user[2];
                                  Data User
                             </div>
                             <div class="card-body">
+                                <?php
+                                if (isset($_SESSION['res_user'])) {
+                                    if ($_SESSION['res_user'] == 'sukses_edit') {
+                                        echo "<div class='alert alert-success alert-dismissible fade show'><button type='button' class='btn-close' data-bs-dismiss='alert'></button><i class='fa-solid fa-circle-check me-2'></i><strong>Sukses!</strong> Data user berhasil diubah.</div>";
+                                    } elseif ($_SESSION['res_user'] == 'tanpa_perubahan') {
+                                        echo "<div class='alert alert-primary alert-dismissible fade show'><button type='button' class='btn-close' data-bs-dismiss='alert'></button><i class='fa-solid fa-circle-info me-2'></i><strong>Info:</strong> Data user disimpan tanpa perubahan.</div>";
+                                    } elseif ($_SESSION['res_user'] == 'sukses_hapus') {
+                                        echo "<div class='alert alert-success alert-dismissible fade show'><button type='button' class='btn-close' data-bs-dismiss='alert'></button><i class='fa-solid fa-trash-can me-2'></i><strong>Sukses!</strong> Akun beserta riwayat airnya terhapus bersih.</div>";
+                                    } elseif ($_SESSION['res_user'] == 'gagal_hapus') {
+                                        echo "<div class='alert alert-danger alert-dismissible fade show'><button type='button' class='btn-close' data-bs-dismiss='alert'></button><i class='fa-solid fa-triangle-exclamation me-2'></i><strong>Gagal:</strong> User gagal dihapus.</div>";
+                                    }
+                                    unset($_SESSION['res_user']);
+                                }
+                                ?>
+                            
                                 <table id="datatablesSimple">
                                     <thead>
                                         <tr>
@@ -800,18 +831,18 @@ $level=$dt_user[2];
                                         </tr>
                                     </thead>
                                     
-                                    <tbody>
+                                   <tbody>
                                         <?php
                                          $q=mysqli_query($koneksi,"SELECT username,nama,alamat,kota,tlp,level,tipe,status FROM login ORDER BY level ASC");
                                          while($d=mysqli_fetch_row($q)) {
-                                            $user = $d[0];
-                                            $nama = $d[1];
-                                            $alamat = $d[2];
-                                            $kota = $d[3];
-                                            $telp = $d[4];
-                                            $level = $d[5];
-                                            $tipe = $d[6];
-                                            $status = $d[7];
+                                            $user    = $d[0];
+                                            $nama    = $d[1];
+                                            $alamat  = $d[2];
+                                            $kota    = $d[3];
+                                            $telp    = $d[4];
+                                            $u_level = $d[5]; // SOLUSI: Menggunakan $u_level agar tidak merusak level admin login utama
+                                            $tipe    = $d[6];
+                                            $status  = $d[7];
 
                                             echo "<tr>
                                                     <td>$user</td>
@@ -819,8 +850,7 @@ $level=$dt_user[2];
                                                     <td>$alamat</td>
                                                     <td>$kota</td>
                                                     <td>$telp</td>
-                                                    <td>$level</td>
-                                                    <td>$tipe</td>
+                                                    <td>$u_level</td> <td>$tipe</td>
                                                     <td>$status</td>
                                                     <td>
     <a href='index.php?p=user_edit&user=$user'><button type='button' class='btn btn-outline-primary btn-sm'>Ubah</button></a>
@@ -830,8 +860,6 @@ $level=$dt_user[2];
                                                 </tr>";
                                          }
                                         ?>
-                                        
-                                        
                                     </tbody>
                                 </table>
                             </div>
@@ -881,6 +909,16 @@ $level=$dt_user[2];
         <i class="fa-solid fa-table text-success me-2"></i> Data Tarif
     </div>
     <div class="card-body">
+        <?php
+                                if (isset($_SESSION['res_tarif'])) {
+                                    if ($_SESSION['res_tarif'] == 'sukses_edit') {
+                                        echo "<div class='alert alert-success alert-dismissible fade show'><button type='button' class='btn-close' data-bs-dismiss='alert'></button><i class='fa-solid fa-circle-check me-2'></i><strong>Sukses!</strong> Data tarif berhasil diubah.</div>";
+                                    } elseif ($_SESSION['res_tarif'] == 'tanpa_perubahan') {
+                                        echo "<div class='alert alert-primary alert-dismissible fade show'><button type='button' class='btn-close' data-bs-dismiss='alert'></button><i class='fa-solid fa-circle-info me-2'></i><strong>Info:</strong> Data tarif disimpan tanpa perubahan.</div>";
+                                    }
+                                    unset($_SESSION['res_tarif']);
+                                }
+                                ?>
         <table id="tarif_table">
             <thead>
                 <tr>
@@ -1175,14 +1213,14 @@ $level=$dt_user[2];
                     }
                     
                     if(dataWarga.sudah_input_bulan_ini) {
-                        infoLastInput.innerHTML = `<i class="fa-solid fa-clock text-danger"></i> Sudah tercatat bulan ini pada: <b class="text-danger">\${dataWarga.tgl_terakhir}</b>`;
+                        infoLastInput.innerHTML = `<i class="fa-solid fa-clock text-danger"></i> Sudah tercatat bulan ini pada: <b class="text-danger">${dataWarga.tgl_terakhir}</b>`;
                         alertContainer.innerHTML = `
                             <div class="alert alert-danger alert-dismissible fade show m-0 animate_fade" id="alert-meter">
                                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                                <strong>Gagal:</strong> Pencatatan bulan Juni sudah dilakukan (\${dataWarga.tgl_terakhir}). Tidak boleh ada data ganda!
+                                <strong>Gagal:</strong> Pencatatan bulan Juni sudah dilakukan (${dataWarga.tgl_terakhir}). Tidak boleh ada data ganda!
                             </div>`;
                     } else {
-                        infoLastInput.innerHTML = `<i class="fa-solid fa-clock text-success"></i> Input terakhir: <b class="text-success">\${dataWarga.tgl_terakhir}</b>`;
+                        infoLastInput.innerHTML = `<i class="fa-solid fa-clock text-success"></i> Input terakhir: <b class="text-success">${dataWarga.tgl_terakhir}</b>`;
                     }
                 } else {
                     if (currentLevel !== 'bendahara') {
