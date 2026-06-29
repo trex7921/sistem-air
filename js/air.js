@@ -17,8 +17,15 @@ $(document).ready(function () {
   // add user
 
   if (e[1] == "user" || e[1] == "user_edit&user") {
-    $("#summary, #chart, #pilih_waktu, #user_add").hide();
-    $("#user_list").show();
+    if ($("#alert-user").hasClass("alert-danger")) {
+      // Jika username kembar, sembunyikan tabel dan PAKSA form tetap terbuka
+      $("#summary, #chart, #pilih_waktu, #user_list").hide();
+      $("#user_add").show();
+    } else {
+      // Jika kondisi normal (tidak ada error), jalankan alur standar bawaanmu
+      $("#summary, #chart, #pilih_waktu, #user_add").hide();
+      $("#user_list").show();
+    }
 
     if (e[1] == "user_edit&user") {
       $("#user_list").hide();
@@ -39,8 +46,14 @@ $(document).ready(function () {
     // menu tarif
   } else if (e[1] == "manajemen_tarif_air" || e[1] == "tarif_edit&id_tarif") {
 
-    $("#summary, #chart, #user_add, #user_list, #tarif_add, #pilih_waktu, #chart").hide();
-    $("#tarif_list").show();
+    if ($("#alert-tarif").hasClass("alert-warning") || $("#alert-tarif").hasClass("alert-danger")) {
+      $("#summary, #chart, #user_add, #user_list, #tarif_list, #pilih_waktu, #chart").hide();
+      $("#tarif_add").show();
+    } else {
+      // Jika kondisi masuk normal tanpa eror duplikat, tampilkan tabel list biasa
+      $("#summary, #chart, #user_add, #user_list, #tarif_add, #pilih_waktu, #chart").hide();
+      $("#tarif_list").show();
+    }
 
     const tarifTable = document.getElementById('tarif_table');
     if (tarifTable) {

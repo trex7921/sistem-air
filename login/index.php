@@ -292,13 +292,13 @@ $level=$dt_user[2];
                                                 </div>"; 
                                              }        
                                         }
-                                    else { //username kembar
-                                        echo "<div class='alert alert-danger alert-dismissible fade show'>
-                                                <button type=button class=btn-close data-bs-dismiss=alert></button>
-                                                <strong>Username</strong> SUDAH digunakan!...
-                                            </div>";
-
-                                    }    
+                                   else { //username kembar
+    // PERBAIKAN: Tambahkan id='alert-user' di bawah ini
+    echo "<div class='alert alert-danger alert-dismissible fade show' id='alert-user'>
+            <button type=button class=btn-close data-bs-dismiss=alert></button>
+            <strong>Username</strong> SUDAH digunakan!...
+        </div>";
+}
                                     } elseif($t=="user_edit") {
 
                                         $user   = $_POST['yuser'];
@@ -393,44 +393,40 @@ $level=$dt_user[2];
                                         } else {
                                             echo "<div class='alert alert-danger alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button>Data Tarif GAGAL dihapus lekk...</div>"; 
                                         }
-                                    } elseif($t == "meter_add") {
+                                    } 
+                                    // =========================================================================
+                                    // PERBAIKAN ALUR METERAN: MASUKKAN KEMBALI KE DALAM BLOK ISSET POST TOMBOL
+                                    // =========================================================================
+                                    elseif($t == "meter_add") {
                                         $username       = $_POST['username'];
                                         $meter_awal     = $_POST['meter_awal'];
                                         $meter_akhir    = $_POST['meter_akhir'];
                                         $kd_tarif       = $air->user_to_idtarif($username);
                                         $tarif          = $air->id_tarif_to_tarif($kd_tarif);
-                                        $status = $_POST['status_bayar'];
-                                        $bln_skrg = date('m');
-                                        $thn_skrg = date('Y');
-                                        
+                                        $status         = $_POST['status_bayar'];
+                                        $bln_skrg       = date('m');
+                                        $thn_skrg       = date('Y');
 
-                                        // Cek meter awal dan akhir valid (akhir harus lebih besar dari awal)
-                                        $pemakaian = $meter_akhir - $meter_awal;
+                                        $pemakaian      = $meter_akhir - $meter_awal;
                                         $tagihan        = $tarif * $pemakaian;
 
-                                        // kalau pemakaian 0, auto lunas
-                                        if ($pemakaian == 0) {
-                                            $status = "LUNAS";
-                                        }
-                                        // sebulan input sekali
-                                      // KUNCI MUTLAK: CEK DUPLIKAS I BULAN INI TERLEBIH DAHULU
+                                        if ($pemakaian == 0) { $status = "LUNAS"; }
+
                                         $q_cek_bulan = mysqli_query($koneksi, "SELECT no FROM pemakaian WHERE username='$username' AND MONTH(tgl) = '$bln_skrg' AND YEAR(tgl) = '$thn_skrg'");
-                                        // MESIN HANYA AKAN MEMILIH SALAH SATU DARI 3 KONDISI INI:
+                                        
                                         if (mysqli_num_rows($q_cek_bulan) > 0) {
-                                            // Kondisi 1: Ditolak karena bulan ini sudah ada
                                             echo "<div class='alert alert-danger alert-dismissible fade show' id='alert-meter'><button type=button class=btn-close data-bs-dismiss=alert></button>GAGAL: Warga ini <b>sudah dicatat</b> meternya pada bulan ini!</div>";
                                         } 
                                         elseif ($pemakaian < 0) { 
-                                            // Kondisi 2: Ditolak karena meteran minus
                                             echo "<div class='alert alert-danger alert-dismissible fade show' id='alert-meter'><button type=button class=btn-close data-bs-dismiss=alert></button>GAGAL: Meter Akhir harus lebih besar dari Meter Awal!</div>";
                                         } 
                                         else {
-                                            // Kondisi 3: Aman, simpan ke database
                                             mysqli_query($koneksi, "INSERT INTO pemakaian (username, meter_awal, meter_akhir, pemakaian, tgl, waktu, kd_tarif, tagihan, status) VALUES ('$username', '$meter_awal', '$meter_akhir', '$pemakaian', CURRENT_DATE(), CURRENT_TIME(), '$kd_tarif', '$tagihan', '$status')");
 
                                             if (mysqli_affected_rows($koneksi) > 0) {
-                                                echo "<div class='alert alert-success alert-dismissible fade show' id='alert-meter'><button type=button class=btn-close data-bs-dismiss=alert></button>Data Meter BERHASIL ditambahkan.</div>";
-                                                unset($_POST['username'], $_POST['meter_awal'], $_POST['meter_akhir']); 
+                                                $_SESSION['res_meter'] = 'sukses_add';
+                                                echo "<script>window.location.replace('index.php?p=catat_edit_meter');</script>";
+                                                exit();
                                             } else {
                                                 echo "<div class='alert alert-danger alert-dismissible fade show' id='alert-meter'><button type=button class=btn-close data-bs-dismiss=alert></button>Data Meter GAGAL ditambahkan.</div>";
                                             }
@@ -438,55 +434,59 @@ $level=$dt_user[2];
                                        
                                     }
                                     elseif($t == "meter_edit") {
-                                        // Perhatikan: ID diambil dari input hidden (id_tarif_lama) yang disuntikkan oleh JS
-                                        $no            = $_POST['no'];
-                                        $meter_awal      = $_POST['meter_awal']; 
+                                        $no             = $_POST['no'];
+                                        $meter_awal     = $_POST['meter_awal']; 
                                         $meter_akhir    = $_POST['meter_akhir'];
 
                                         $username       = $air->no_to_user($no);
                                         $_POST['username'] = $username;
                                         $kd_tarif       = $air->user_to_idtarif($username);
                                         $tarif          = $air->id_tarif_to_tarif($kd_tarif);
-                                         $pemakaian = $meter_akhir - $meter_awal;
+                                        $pemakaian      = $meter_akhir - $meter_awal;
                                         $tagihan        = $tarif * $pemakaian;
-                                        $status = $_POST['status_bayar'];
+                                        $status         = $_POST['status_bayar'];
                                        
-                                        // SUNTIKAN AUTO-LUNAS
-                                        if ($pemakaian == 0) {
-                                            $status = "LUNAS";
-                                        }
-                                       
+                                        if ($pemakaian == 0) { $status = "LUNAS"; }
 
-                                       if($pemakaian < 0) { 
+                                        if($pemakaian < 0) { 
                                             echo "<div class='alert alert-danger alert-dismissible fade show' id='alert-meter'><button type=button class=btn-close data-bs-dismiss=alert></button>GAGAL UBAH: Meter Akhir harus lebih besar dari Meter Awal!</div>";
                                         } else {
-                                            // EKSEKUSI UPDATE (TANGGAL & WAKTU DIHAPUS AGAR HISTORI ASLI TIDAK RUSAK)
                                             mysqli_query($koneksi, "UPDATE pemakaian SET meter_awal='$meter_awal', meter_akhir='$meter_akhir', pemakaian='$pemakaian', tagihan='$tagihan', status='$status' WHERE no='$no'");
                                             
                                             if (mysqli_affected_rows($koneksi) > 0) {
-                                                echo "<div class='alert alert-success alert-dismissible fade show' id='alert-meter'><button type=button class=btn-close data-bs-dismiss=alert></button>Data Meter BERHASIL diubah.</div>";
+                                                $_SESSION['res_meter'] = 'sukses_edit';
+                                                echo "<script>window.location.replace('index.php?p=catat_edit_meter');</script>";
+                                                exit();
                                             } else {
-                                                echo "<div class='alert alert-primary alert-dismissible fade show' id='alert-meter'><button type=button class=btn-close data-bs-dismiss=alert></button>Data Meter tidak ada perubahan.</div>"; 
+                                                $_SESSION['res_meter'] = 'tanpa_perubahan';
+                                                echo "<script>window.location.replace('index.php?p=catat_edit_meter');</script>"; 
+                                                exit();
                                             }
                                         }
-                                    
 
-                                    
-                                       }elseif($t == "meter_hapus") { 
+                                    }
+                                    elseif($t == "meter_hapus") { 
                                         $no = $_POST['no']; 
                                         
                                         mysqli_query($koneksi, "DELETE FROM pemakaian WHERE no='$no'"); 
                                         
                                         if (mysqli_affected_rows($koneksi) > 0) {
-                                            echo "<div class='alert alert-success alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button>Data Meter BERHASIL dihapus lekk...</div>";
+                                            $_SESSION['res_meter'] = 'sukses_hapus';
+                                            echo "<script>window.location.replace('index.php?p=catat_edit_meter');</script>";
+                                            exit();
                                         } else {
-                                            echo "<div class='alert alert-danger alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button>Data Meter GAGAL dihapus lekk...</div>"; 
+                                            $_SESSION['res_meter'] = 'gagal_hapus';
+                                            echo "<script>window.location.replace('index.php?p=catat_edit_meter');</script>";
+                                            exit();
                                         }
                                     }
-                                
-                                    } elseif(isset($_GET['p'])) {
-                                        $p=$_GET ['p'];
-                                        if($p=="user_edit") {
+                                    
+                            } // <--- SEKARANG DI SINI BARU BENER TEMPATNYA UNTUK MENUTUP 'if(isset($_POST['tombol']))' UTAMA!
+                            
+                            // SAMBUNGKAN KEMBALI AKSI GET SECARA RESMI SEBAGAI PILIHAN KEDUA
+                            if(isset($_GET['p'])) {
+                                $p=$_GET ['p'];
+                                if($p=="user_edit") {
                                         
                                         $user=$_GET['user'];
                                         // echo "masuk kesini untuk ngedit user: $user";
@@ -917,11 +917,45 @@ $level=$dt_user[2];
     </div>
 </div>
 
+
 <div class="card mb-4" id="meter_list" style="display:none;">
     <div class="card-header">
         <i class="fa-solid fa-rupiah-sign text-success me-2"></i> Data Meter Warga
     </div>
     <div class="card-body">
+    
+        <?php
+        if (isset($_SESSION['res_meter'])) {
+            if ($_SESSION['res_meter'] == 'sukses_add') {
+                echo "<div class='alert alert-success alert-dismissible fade show' id='alert-meter'>
+                        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
+                        <i class='fa-solid fa-circle-check me-2'></i><strong>Sukses!</strong> Data pencatatan meteran baru warga berhasil ditambahkan lekk...
+                      </div>";
+            } elseif ($_SESSION['res_meter'] == 'sukses_edit') {
+                echo "<div class='alert alert-success alert-dismissible fade show' id='alert-meter'>
+                        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
+                        <i class='fa-solid fa-circle-check me-2'></i><strong>Sukses!</strong> Perubahan status pembayaran warga berhasil diperbarui lekk...
+                      </div>";
+            } elseif ($_SESSION['res_meter'] == 'tanpa_perubahan') {
+                echo "<div class='alert alert-primary alert-dismissible fade show' id='alert-meter'>
+                        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
+                        <i class='fa-solid fa-circle-info me-2'></i><strong>Info:</strong> Data disimpan tanpa ada perubahan.
+                      </div>";
+            } elseif ($_SESSION['res_meter'] == 'sukses_hapus') {
+                echo "<div class='alert alert-success alert-dismissible fade show' id='alert-meter'>
+                        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
+                        <i class='fa-solid fa-trash-can me-2'></i><strong>Sukses!</strong> Data meteran warga berhasil dihapus dari sistem!
+                      </div>";
+            } elseif ($_SESSION['res_meter'] == 'gagal_hapus') {
+                echo "<div class='alert alert-danger alert-dismissible fade show' id='alert-meter'>
+                        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
+                        <i class='fa-solid fa-triangle-exclamation me-2'></i><strong>Gagal:</strong> Data pencatatan meteran warga gagal dihapus dari database.
+                      </div>";
+            }
+            unset($_SESSION['res_meter']); 
+        }
+        ?>
+        
         <table id="meter_table">
             <thead>
                 <tr>
@@ -931,13 +965,10 @@ $level=$dt_user[2];
                     <th>Meter Akhir (m³)</th>
                     <th>Pemakaian (m³)</th>
                    <?php 
-                    // sembunyikan kepala tabel tagihan dan status dari petugas
                     if($dt_user[2] != "petugas") { 
-             echo "<th>Tagihan</th>
-                   <th>Status</th>";
+                         echo "<th>Tagihan</th><th>Status</th>";
                     }
                     ?>
-                    
                     <th>Aksi</th>
                 </tr>
             </thead>
@@ -946,8 +977,8 @@ $level=$dt_user[2];
                 $q_pemakaian = mysqli_query($koneksi,"SELECT no, username, meter_awal, meter_akhir, pemakaian, tgl, waktu, tagihan, status FROM pemakaian ORDER BY tgl DESC, username ASC");
                 while($d_pemakaian = mysqli_fetch_row($q_pemakaian)) {
                     $no         = $d_pemakaian[0];
-                    $dt_user2      = $air->dt_user($d_pemakaian[1]); 
-                    $nama=$dt_user2[0];
+                    $dt_user2   = $air->dt_user($d_pemakaian[1]); 
+                    $nama       = $dt_user2[0];
                     $meter_awal = $d_pemakaian[2];
                     $meter_akhir = $d_pemakaian[3];
                     $pemakaian  = $d_pemakaian[4];
@@ -956,78 +987,55 @@ $level=$dt_user[2];
                     $tagihan    = $d_pemakaian[7];
                     $status_byr = $d_pemakaian[8];
 
-                    // Query manual cepat untuk mengambil Tipe dari tabel login
-                    $q_tipe = mysqli_query($koneksi, "SELECT tipe FROM login WHERE username='$user'");
-                    $d_tipe = mysqli_fetch_row($q_tipe);
-                    $tipe_warga = $d_tipe[0];
-
-                    // Format Rupiah untuk Tagihan
                     $tagihan_rp = "Rp " . number_format($tagihan, 0, ',', '.');
-
-                    // Label Status Berwarna
                     $badge_status = ($status_byr == "LUNAS") ? "<span class='badge bg-success'>LUNAS</span>" : "<span class='badge bg-danger'>BELUM LUNAS</span>";
 
-                    $level_login = $dt_user[2]; // level login saat ini (untuk menentukan tombol aksi yang muncul)
-                    $tgl_tabel=date_create($d_pemakaian[5]);
-                    $tgl_sekarang=date_create();
-                    $diff=date_diff($tgl_tabel,$tgl_sekarang);
-                    $selisih=$diff->days;
-                    
+                    $level_login = $dt_user[2]; 
+                    $tgl_tabel = date_create($d_pemakaian[5]);
+                    $tgl_sekarang = date_create();
+                    $diff = date_diff($tgl_tabel,$tgl_sekarang);
+                    $selisih = $diff->days;
 
-                    $tombol_aksi = ""; 
-                    $btn_html = "<a href='index.php?p=meter_edit&no=$no'><button type='button' class='btn btn-outline-primary btn-sm'>Ubah</button></a>
-    <button type='button' class='btn btn-outline-danger btn-sm' data-bs-toggle='modal' data-bs-target='#modalMeter' data-no='$no'>Hapus</button>
-</td>";
-                        
-
-                    echo "
-                        
-                            <tr>
+                    echo "<tr>
                             <td>$nama</td>
                             <td>$tgl $waktu | ".date("Y-m-d")." $selisih hari</td>
                             <td>$meter_awal</td>
                             <td>$meter_akhir</td>
                             <td>$pemakaian</td> ";
-                     if ($level_login != "petugas") { //sembunyikan tagihan dari petugas (isi tabel)
-                     echo "<td>$tagihan_rp</td>
-                           <td>$badge_status</td>";
-                            }    
-                            // untuk petugas
-                            if ($level_login == "admin" || $level_login == "bendahara") {
-                                echo "<td>
-    <a href='index.php?p=meter_edit&no=$no'><button type='button' class='btn btn-outline-primary btn-sm'>Ubah</button></a>
-    <button type='button' class='btn btn-outline-danger btn-sm' data-bs-toggle='modal' data-bs-target='#modalMeter' data-no='$no'>Hapus</button>
-</td>";}
-                            
-                            else {
-                                if ($selisih <= 30) {
-                                echo "<td>
-                            <a href='index.php?p=meter_edit&no=$no'><button type='button' class='btn btn-outline-primary btn-sm'>Ubah</button></a>
+                     if ($level_login != "petugas") { 
+                         echo "<td>$tagihan_rp</td><td>$badge_status</td>";
+                     }    
+                     if ($level_login == "admin" || $level_login == "bendahara") {
+                         echo "<td>
+                                <a href='index.php?p=meter_edit&no=$no'><button type='button' class='btn btn-outline-primary btn-sm'>Ubah</button></a>
                                 <button type='button' class='btn btn-outline-danger btn-sm' data-bs-toggle='modal' data-bs-target='#modalMeter' data-no='$no'>Hapus</button>
-                            </td>";}
-                            else {
-                                echo "<td><span class='badge bg-secondary'>Terkunci</span></td>";
-                            }
-                            }
-                            
-                            echo "</tr>";
-                          
-                        
-                        
+                               </td>";
+                     } else {
+                         if ($selisih <= 30) {
+                             echo "<td>
+                                    <a href='index.php?p=meter_edit&no=$no'><button type='button' class='btn btn-outline-primary btn-sm'>Ubah</button></a>
+                                    <button type='button' class='btn btn-outline-danger btn-sm' data-bs-toggle='modal' data-bs-target='#modalMeter' data-no='$no'>Hapus</button>
+                                   </td>";
+                         } else {
+                             echo "<td><span class='badge bg-secondary'>Terkunci</span></td>";
+                         }
+                     }
+                     echo "</tr>";
                 }
                 ?>
-                </tbody>
+            </tbody>
         </table>
     </div>
 </div>
-    <div class="card mb-4" id="meter_add" style="display:none;">
+
+<div class="card mb-4" id="meter_add" style="display:none;">
     <div class="card-header">
         <i class="fa-solid fa-money-bill-wave text-success me-2"></i> Tambah Meter
     </div>
     <div class="card-body">
         <?php
-        if ($e[1]=="meter_edit&no") $dis='disabled';
-        else $dis="";
+        if (isset($e[1]) && $e[1] == "meter_edit&no") $dis = 'disabled';
+        else $dis = "";
         ?>
         <form action="" method="post" id="meter_form">
             <div class="mb-3">
@@ -1035,9 +1043,8 @@ $level=$dt_user[2];
                 <select class="form-select" id="username" name="username" required <?php echo $dis; ?>>
                     <option value="">Nama Warga</option>
                     <?php
-                    $qw=mysqli_query($koneksi,"SELECT username,nama FROM login WHERE level='warga'");
-                    while ($dw=mysqli_fetch_row($qw)) {
-                        // HANYA BARIS INI YANG BOLEH ADA DI SINI
+                    $qw = mysqli_query($koneksi,"SELECT username,nama FROM login WHERE level='warga'");
+                    while ($dw = mysqli_fetch_row($qw)) {
                         $selected = (isset($_POST['username']) && $_POST['username'] == $dw[0]) ? "selected" : "";
                         echo "<option value='$dw[0]' $selected>$dw[1]</option>";
                     }
@@ -1047,177 +1054,193 @@ $level=$dt_user[2];
                 <div id="js_alert_container" class="mt-2"></div>
             </div>
             
-           
-                <?php 
-           // disable utak utik angka meter untuk bendahara 
-           $kunci_meter = ($dt_user[2] == "bendahara") ? "readonly" : ""; 
-           ?>
-           <div class="row mb-3">
+            <?php 
+            // Meter awal WAJIB readonly jika Bendahara ATAU sedang berada di halaman meter_edit
+            $kunci_meter_awal = ($dt_user[2] == "bendahara" || (isset($_GET['p']) && $_GET['p'] == "meter_edit")) ? "readonly style='background-color: #e8f0fe;'" : ""; 
+            
+            // Meter akhir HANYA readonly jika Bendahara (Petugas masih boleh edit buat benerin typo)
+            $kunci_meter_akhir = ($dt_user[2] == "bendahara") ? "readonly style='background-color: #e8f0fe;'" : "";
+            ?>
+            
+            <div class="row mb-3">
                 <div class="col-md-6">
                     <label for="meter_awal">Meter Awal (m³)</label>
-                    <input type="number" class="form-control" id="meter_awal" name="meter_awal" value="<?php echo isset($_POST['meter_awal']) ? $_POST['meter_awal'] : ''; ?>" required <?php echo $kunci_meter; ?>>
+                    <input type="number" class="form-control" id="meter_awal" name="meter_awal" value="<?php echo isset($_POST['meter_awal']) ? $_POST['meter_awal'] : ''; ?>" required <?php echo $kunci_meter_awal; ?>>
                 </div>
                 <div class="col-md-6">
                     <label for="meter_akhir">Meter Akhir (m³)</label>
-                    <input type="number" class="form-control" id="meter_akhir" name="meter_akhir" value="<?php echo isset($_POST['meter_akhir']) ? $_POST['meter_akhir'] : ''; ?>" required <?php echo $kunci_meter; ?>>
+                    <input type="number" class="form-control" id="meter_akhir" name="meter_akhir" value="<?php echo isset($_POST['meter_akhir']) ? $_POST['meter_akhir'] : ''; ?>" required <?php echo $kunci_meter_akhir; ?>>
                 </div>
             </div>
-      
-               
 
             <div class="mt-3">
-               <?php if($dt_user[2] == "admin" || $dt_user[2] == "bendahara") { ?>
-            <div class="mb-3">
-                <label for="status_bayar">Status Pembayaran</label>
-                <select class="form-select" id="status_bayar" name="status_bayar">
-                    <option value="BELUM LUNAS" <?php echo (isset($_POST['status_bayar']) && $_POST['status_bayar'] == 'BELUM LUNAS') ? 'selected' : ''; ?>>BELUM LUNAS</option>
-                    <option value="LUNAS" <?php echo (isset($_POST['status_bayar']) && $_POST['status_bayar'] == 'LUNAS') ? 'selected' : ''; ?>>LUNAS</option>
-                </select>
-            </div>
-            <?php } else { ?>
-                <input type="hidden" name="status_bayar" value="BELUM LUNAS">
-            <?php } ?>
-               <?php
-                // pembaca tombol
+                <?php if($dt_user[2] == "admin" || $dt_user[2] == "bendahara") { ?>
+                <div class="mb-3">
+                    <label for="status_bayar">Status Pembayaran</label>
+                    <select class="form-select" id="status_bayar" name="status_bayar">
+                        <option value="BELUM LUNAS" <?php echo (isset($_POST['status_bayar']) && $_POST['status_bayar'] == 'BELUM LUNAS') ? 'selected' : ''; ?>>BELUM LUNAS</option>
+                        <option value="LUNAS" <?php echo (isset($_POST['status_bayar']) && $_POST['status_bayar'] == 'LUNAS') ? 'selected' : ''; ?>>LUNAS</option>
+                    </select>
+                </div>
+                <?php } else { ?>
+                    <input type="hidden" name="status_bayar" value="BELUM LUNAS">
+                <?php } ?>
+
+                <?php
                 if(isset($_GET['p']) && $_GET['p'] == "meter_edit"){
                     $no_edit = $_GET['no'];
-                    // biar edit gakebaca add   
                     echo "<input type='hidden' name='no' value='$no_edit'>";
-                  // kalo update atau edit
                     echo '<button type="submit" class="btn btn-primary" name="tombol" value="meter_edit">Simpan</button>';
                 } else {
                     echo '<button type="submit" class="btn btn-primary" name="tombol" value="meter_add">Simpan</button>';
                 }
                 ?>
-                <?php
-        // KOREKSI DOSEN: Mengumpulkan data komprehensif (Meter Terakhir, Status Bulan Ini, & Log Bulan Lalu)
-        $q_last = mysqli_query($koneksi, "SELECT username, meter_akhir, tgl, waktu FROM pemakaian ORDER BY tgl DESC, waktu DESC");
-        $data_last_meter = array();
-        
-        while($d_last = mysqli_fetch_assoc($q_last)) {
-            $u = $d_last['username'];
-            // Deteksi otomatis apakah data ini diinput pada bulan dan tahun berjalan saat ini
-            $is_bulan_ini = (date('Y-m', strtotime($d_last['tgl'])) == date('Y-m')) ? true : false;
-            
-            if(!isset($data_last_meter[$u])) {
-                // Menyimpan data terbaru mutlak milik warga
-                $data_last_meter[$u] = array(
-                    'meter_akhir' => $d_last['meter_akhir'],
-                    'sudah_input_bulan_ini' => $is_bulan_ini,
-                    'tgl_terakhir' => $air->tgl_balik($d_last['tgl']) . " " . $d_last['waktu'],
-                    'tgl_bulan_lalu' => '-'
-                );
-            } else {
-                // Jika data terbarunya adalah bulan ini, maka baris data kedua (elese) ini adalah log bulan lalu/sebelumnya
-                if ($data_last_meter[$u]['sudah_input_bulan_ini'] && $data_last_meter[$u]['tgl_bulan_lalu'] == '-') {
-                    $data_last_meter[$u]['tgl_bulan_lalu'] = $air->tgl_balik($d_last['tgl']) . " " . $d_last['waktu'];
+            </div>
+
+            <?php
+            $q_last = mysqli_query($koneksi, "SELECT username, meter_akhir, tgl, waktu FROM pemakaian ORDER BY tgl DESC, waktu DESC");
+            $data_last_meter = array();
+            while($d_last = mysqli_fetch_assoc($q_last)) {
+                $u = $d_last['username'];
+                $is_bulan_ini = (date('Y-m', strtotime($d_last['tgl'])) == date('Y-m')) ? true : false;
+                if(!isset($data_last_meter[$u])) {
+                    $data_last_meter[$u] = array(
+                        'meter_akhir' => $d_last['meter_akhir'],
+                        'sudah_input_bulan_ini' => $is_bulan_ini,
+                        'tgl_terakhir' => $air->tgl_balik($d_last['tgl']) . " " . $d_last['waktu'],
+                        'tgl_bulan_lalu' => '-'
+                    );
+                } else {
+                    if ($data_last_meter[$u]['sudah_input_bulan_ini'] && $data_last_meter[$u]['tgl_bulan_lalu'] == '-') {
+                        $data_last_meter[$u]['tgl_bulan_lalu'] = $air->tgl_balik($d_last['tgl']) . " " . $d_last['waktu'];
+                    }
                 }
             }
-        }
-        ?>
-<script>
-// Ambil status kontekstual asli dari PHP agar JavaScript tidak amnesia Role
-const currentLevel = "<?php echo $level; ?>";
-const currentParam = "<?php echo isset($_GET['p']) ? $_GET['p'] : ''; ?>";
-const riwayatMeter = <?php echo json_encode($data_last_meter); ?>;
+            ?>
+            <script>
+            const currentLevel = typeof level_user !== 'undefined' ? level_user : "<?php echo $dt_user[2]; ?>";
+            const currentParam = "<?php echo isset($_GET['p']) ? $_GET['p'] : ''; ?>";
+            const riwayatMeter = <?php echo json_encode($data_last_meter); ?>;
 
-document.querySelector('#meter_form #username').addEventListener('change', function() {
-    const userPilih = this.value;
-    const inputMeterAwal = document.getElementById('meter_awal');
-    const inputMeterAkhir = document.getElementById('meter_akhir');
-    const infoLastInput = document.getElementById('info_last_input');
-    const alertContainer = document.getElementById('js_alert_container');
-    
-    // Reset keadaan form info
-    infoLastInput.innerHTML = "";
-    alertContainer.innerHTML = "";
-    
-    // BARIKADE 1: KUNCI MUTLAK EDIT MODE
-    // Jika sedang dalam mode edit data lama, STOP dan dilarang keras menimpa/mengosongkan angka!
-    if (currentParam === 'meter_edit') {
-        if (currentLevel === 'bendahara') {
-            inputMeterAwal.readOnly = true;
-            inputMeterAwal.style.backgroundColor = '#e8f0fe';
-            inputMeterAkhir.readOnly = true;
-            inputMeterAkhir.style.backgroundColor = '#e8f0fe';
-        }
-        return; // Keluar dari fungsi, amankan nilai asli yang dicetak PHP dari database!
-    }
-    
-    if(userPilih === "") {
-        if (currentLevel !== 'bendahara') {
-            inputMeterAwal.value = '';
-            inputMeterAwal.style.backgroundColor = '';
-            inputMeterAwal.readOnly = false; 
-            inputMeterAkhir.value = '';
-        }
-        return;
-    }
-    
-    if(riwayatMeter[userPilih] !== undefined) {
-        const dataWarga = riwayatMeter[userPilih];
-        
-        // Logika ini HANYA berjalan di mode METER_ADD (Tambah Data Baru)
-        inputMeterAwal.value = dataWarga.meter_akhir;
-        inputMeterAwal.style.backgroundColor = '#e8f0fe'; 
-        inputMeterAwal.readOnly = true; 
-        
-        // Meter akhir dipaksa KOSONG bersih saat tambah data baru agar bisa diketik petugas
-        if (currentLevel !== 'bendahara') {
-            inputMeterAkhir.value = ''; 
-            inputMeterAkhir.readOnly = false; 
-            inputMeterAkhir.style.backgroundColor = '';
-        }
-        
-        // Evaluasi Status Peringatan Duplikat Kalender
-        if(dataWarga.sudah_input_bulan_ini) {
-            infoLastInput.innerHTML = `<i class="fa-solid fa-clock text-danger"></i> Sudah tercatat bulan ini pada: <b class="text-danger">${dataWarga.tgl_terakhir}</b>`;
-            alertContainer.innerHTML = `
-                <div class="alert alert-danger alert-dismissible fade show m-0 animate_fade" id="alert-meter">
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    <strong>Gagal:</strong> Pencatatan bulan Juni sudah dilakukan (${dataWarga.tgl_terakhir}). Tidak boleh ada data ganda!
-                </div>`;
-        } else {
-            infoLastInput.innerHTML = `<i class="fa-solid fa-clock text-success"></i> Input terakhir: <b class="text-success">${dataWarga.tgl_terakhir}</b>`;
-        }
-    } else {
-        // Jika Warga Baru murni tanpa riwayat
-        if (currentLevel !== 'bendahara') {
-            inputMeterAwal.value = '';
-            inputMeterAwal.style.backgroundColor = '';
-            inputMeterAwal.readOnly = false; 
-            inputMeterAkhir.value = '';
-            inputMeterAkhir.readOnly = false;
-            inputMeterAkhir.style.backgroundColor = '';
-        }
-        infoLastInput.innerHTML = `<i class="fa-solid fa-circle-info text-info"></i> Warga baru: Belum ada riwayat input meteran sebelumnya.`;
-    }
-});
+            document.querySelector('#meter_form #username').addEventListener('change', function() {
+                const userPilih = this.value;
+                const inputMeterAwal = document.getElementById('meter_awal');
+                const inputMeterAkhir = document.getElementById('meter_akhir');
+                const infoLastInput = document.getElementById('info_last_input');
+                const alertContainer = document.getElementById('js_alert_container');
+                
+                infoLastInput.innerHTML = "";
+                alertContainer.innerHTML = "";
+                
+               // =========================================================================
+            // JAVASCRIPT PROTEKSI: Kunci Mutlak Ketika Berada di Halaman Edit Meter
+            // =========================================================================
+            if (currentParam === 'meter_edit') {
+                // Siapa pun aktornya (Petugas/Bendahara/Admin), Meter Awal KAGAK BOLEH BERUBAH!
+                inputMeterAwal.readOnly = true;
+                inputMeterAwal.style.backgroundColor = '#e8f0fe';
+                
+                if (currentLevel === 'bendahara') {
+                    // Jika Bendahara, kunci juga meter akhirnya
+                    inputMeterAkhir.readOnly = true;
+                    inputMeterAkhir.style.backgroundColor = '#e8f0fe';
+                } else {
+                    // Jika Petugas/Admin, biarkan meter akhir terbuka untuk perbaikan typo
+                    inputMeterAkhir.readOnly = false;
+                    inputMeterAkhir.style.backgroundColor = '';
+                }
+                return; // Keluar dari fungsi, amankan data asli cetakan PHP
+            }
+                
+                if(userPilih === "") {
+                    if (currentLevel !== 'bendahara') {
+                        inputMeterAwal.value = '';
+                        inputMeterAwal.style.backgroundColor = '';
+                        inputMeterAwal.readOnly = false; 
+                        inputMeterAkhir.value = '';
+                    }
+                    return;
+                }
+                
+                if(riwayatMeter[userPilih] !== undefined) {
+                    const dataWarga = riwayatMeter[userPilih];
+                    inputMeterAwal.value = dataWarga.meter_akhir;
+                    inputMeterAwal.style.backgroundColor = '#e8f0fe'; 
+                    inputMeterAwal.readOnly = true; 
+                    
+                    if (currentLevel !== 'bendahara') {
+                        inputMeterAkhir.value = ''; 
+                        inputMeterAkhir.readOnly = false; 
+                        inputMeterAkhir.style.backgroundColor = '';
+                    }
+                    
+                    if(dataWarga.sudah_input_bulan_ini) {
+                        infoLastInput.innerHTML = `<i class="fa-solid fa-clock text-danger"></i> Sudah tercatat bulan ini pada: <b class="text-danger">\${dataWarga.tgl_terakhir}</b>`;
+                        alertContainer.innerHTML = `
+                            <div class="alert alert-danger alert-dismissible fade show m-0 animate_fade" id="alert-meter">
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                <strong>Gagal:</strong> Pencatatan bulan Juni sudah dilakukan (\${dataWarga.tgl_terakhir}). Tidak boleh ada data ganda!
+                            </div>`;
+                    } else {
+                        infoLastInput.innerHTML = `<i class="fa-solid fa-clock text-success"></i> Input terakhir: <b class="text-success">\${dataWarga.tgl_terakhir}</b>`;
+                    }
+                } else {
+                    if (currentLevel !== 'bendahara') {
+                        inputMeterAwal.value = '0'; 
+                        inputMeterAwal.style.backgroundColor = '#e8f0fe'; 
+                        inputMeterAwal.readOnly = true; 
+                        inputMeterAkhir.value = '';
+                        inputMeterAkhir.readOnly = false;
+                        inputMeterAkhir.style.backgroundColor = '';
+                    }
+                    infoLastInput.innerHTML = `<i class="fa-solid fa-circle-info text-info"></i> Warga baru: Belum ada riwayat input meteran sebelumnya. Otomatis dimulai dari 0 m³.`;
+                }
+            });
 
-// BARIKADE 2: Pemicu otomatis saat komponen DOM selesai dimuat
-window.addEventListener('DOMContentLoaded', (event) => {
-    const usernameSelect = document.querySelector('#meter_form #username');
-    
-    // Kunci paksa di detik pertama jika aktornya Bendahara
-    if (currentLevel === 'bendahara') {
-        document.getElementById('meter_awal').readOnly = true;
-        document.getElementById('meter_awal').style.backgroundColor = '#e8f0fe';
-        document.getElementById('meter_akhir').readOnly = true;
-        document.getElementById('meter_akhir').style.backgroundColor = '#e8f0fe';
-    }
-
-    if(usernameSelect && usernameSelect.value !== "") {
-        usernameSelect.dispatchEvent(new Event('change'));
-    }
-});
-</script>
+            window.addEventListener('DOMContentLoaded', (event) => {
+                const alertUser = document.getElementById('alert-user');
+                if (alertUser && alertUser.classList.contains('alert-danger')) {
+                    const userList = document.getElementById('user_list');
+                    const userAdd = document.getElementById('user_add');
+                    
+                    if (document.getElementById('summary')) document.getElementById('summary').style.display = 'none';
+                    if (document.getElementById('chart')) document.getElementById('chart').style.display = 'none';
+                    if (document.getElementById('pilih_waktu')) document.getElementById('pilih_waktu').style.display = 'none';
+                    
+                    if (userList) userList.style.display = 'none';
+                    if (userAdd) userAdd.style.display = 'block';
+                }
+                
+                const usernameSelect = document.querySelector('#meter_form #username');
+                if (currentParam === 'meter_edit') {
+                    if(document.getElementById('meter_awal')) {
+                        document.getElementById('meter_awal').readOnly = true;
+                        document.getElementById('meter_awal').style.backgroundColor = '#e8f0fe';
+                    }
+                }
+                
+                if (currentLevel === 'bendahara') {
+                    if(document.getElementById('meter_awal')) {
+                        document.getElementById('meter_awal').readOnly = true;
+                        document.getElementById('meter_awal').style.backgroundColor = '#e8f0fe';
+                    }
+                    if(document.getElementById('meter_akhir')) {
+                        document.getElementById('meter_akhir').readOnly = true;
+                        document.getElementById('meter_akhir').style.backgroundColor = '#e8f0fe';
+                    }
+                }
+                if(usernameSelect && usernameSelect.value !== "") {
+                    usernameSelect.dispatchEvent(new Event('change'));
+                }
+            });
+            </script>
 
              </form>
         </div>
-    </div>
+</div>
            
                 
-                    </div>
+                    
      <div class="card mb-4" id="warga_pemakaian_list" style="display:none;">
     <div class="card-header">
         <i class="fa-solid fa-tint text-primary fa-bounce  me-2"></i> Riwayat Pemakaian Air Anda
