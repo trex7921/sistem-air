@@ -962,37 +962,37 @@ $level=$dt_user[2];
     </div>
     <div class="card-body">
     
-        <?php
-        if (isset($_SESSION['res_meter'])) {
-            if ($_SESSION['res_meter'] == 'sukses_add') {
-                echo "<div class='alert alert-success alert-dismissible fade show' id='alert-meter'>
-                        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
-                        <i class='fa-solid fa-circle-check me-2'></i><strong>Sukses!</strong> Data pencatatan meteran baru warga berhasil ditambahkan lekk...
-                      </div>";
-            } elseif ($_SESSION['res_meter'] == 'sukses_edit') {
-                echo "<div class='alert alert-success alert-dismissible fade show' id='alert-meter'>
-                        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
-                        <i class='fa-solid fa-circle-check me-2'></i><strong>Sukses!</strong> Perubahan status pembayaran warga berhasil diperbarui lekk...
-                      </div>";
-            } elseif ($_SESSION['res_meter'] == 'tanpa_perubahan') {
-                echo "<div class='alert alert-primary alert-dismissible fade show' id='alert-meter'>
-                        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
-                        <i class='fa-solid fa-circle-info me-2'></i><strong>Info:</strong> Data disimpan tanpa ada perubahan.
-                      </div>";
-            } elseif ($_SESSION['res_meter'] == 'sukses_hapus') {
-                echo "<div class='alert alert-success alert-dismissible fade show' id='alert-meter'>
-                        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
-                        <i class='fa-solid fa-trash-can me-2'></i><strong>Sukses!</strong> Data meteran warga berhasil dihapus dari sistem!
-                      </div>";
-            } elseif ($_SESSION['res_meter'] == 'gagal_hapus') {
-                echo "<div class='alert alert-danger alert-dismissible fade show' id='alert-meter'>
-                        <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
-                        <i class='fa-solid fa-triangle-exclamation me-2'></i><strong>Gagal:</strong> Data pencatatan meteran warga gagal dihapus dari database.
-                      </div>";
-            }
-            unset($_SESSION['res_meter']); 
-        }
-        ?>
+       <?php
+                                // =========================================================================
+                                // PERBAIKAN MUTLAK: Filter Respon Berdasarkan Hak Akses Role & Perbaiki Bug air.js
+                                // =========================================================================
+                                if (isset($_SESSION['res_meter'])) {
+                                    if ($_SESSION['res_meter'] == 'sukses_add') {
+                                        echo "<div class='alert alert-success alert-dismissible fade show' id='alert-meter'><button type='button' class='btn-close' data-bs-dismiss='alert'></button><i class='fa-solid fa-circle-check me-2'></i><strong>Sukses!</strong> Data pencatatan meteran baru warga berhasil ditambahkan lekk...</div>";
+                                    } 
+                                    elseif ($_SESSION['res_meter'] == 'sukses_edit') {
+                                        // Jika yang login Bendahara, tampilkan teks khusus Pembayaran
+                                        if ($level == 'bendahara') {
+                                            echo "<div class='alert alert-success alert-dismissible fade show' id='alert-meter'><button type='button' class='btn-close' data-bs-dismiss='alert'></button><i class='fa-solid fa-circle-check me-2'></i><strong>Sukses!</strong> Status pembayaran warga berhasil diperbarui lekk...</div>";
+                                        } 
+                                        // Jika Admin atau Petugas, tampilkan teks khusus Angka Meteran
+                                        else {
+                                            echo "<div class='alert alert-success alert-dismissible fade show' id='alert-meter'><button type='button' class='btn-close' data-bs-dismiss='alert'></button><i class='fa-solid fa-circle-check me-2'></i><strong>Sukses!</strong> Data angka meteran warga berhasil diperbarui lekk...</div>";
+                                        }
+                                    } 
+                                    // FIX "KOK GINI": Tambahkan class alert-success ke dalam alert-primary agar air.js mau menutup form secara otomatis
+                                    elseif ($_SESSION['res_meter'] == 'tanpa_perubahan') {
+                                        echo "<div class='alert alert-success alert-primary alert-dismissible fade show' id='alert-meter'><button type='button' class='btn-close' data-bs-dismiss='alert'></button><i class='fa-solid fa-circle-info me-2'></i><strong>Info:</strong> Data disimpan tanpa ada perubahan fisik.</div>";
+                                    } 
+                                    elseif ($_SESSION['res_meter'] == 'sukses_hapus') {
+                                        echo "<div class='alert alert-success alert-dismissible fade show' id='alert-meter'><button type='button' class='btn-close' data-bs-dismiss='alert'></button><i class='fa-solid fa-trash-can me-2'></i><strong>Sukses!</strong> Data meteran warga berhasil dihapus dari sistem!</div>";
+                                    } 
+                                    elseif ($_SESSION['res_meter'] == 'gagal_hapus') {
+                                        echo "<div class='alert alert-danger alert-dismissible fade show' id='alert-meter'><button type='button' class='btn-close' data-bs-dismiss='alert'></button><i class='fa-solid fa-triangle-exclamation me-2'></i><strong>Gagal:</strong> Data pencatatan meteran warga gagal dihapus dari database.</div>";
+                                    }
+                                    unset($_SESSION['res_meter']); 
+                                }
+                                ?>
         
         <table id="meter_table">
             <thead>
