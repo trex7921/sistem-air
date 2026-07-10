@@ -32,7 +32,7 @@ $(document).ready(function () {
       $("#user_add").show();
       $("#user_form button").val("user_edit");
       $("#user_form input[name='yuser']").attr('readonly', true);
-      $("#user_form").append("<input type='hidden' name='yuser' value='" + e[2] + "'>");
+      $("<input>").attr({ type: "hidden", name: "yuser" }).val(e[2]).appendTo("#user_form");
     }
     if ($("#btn_tambah_user").length === 0) {
       $(".datatable-dropdown").append("<button type=button class='btn btn-success float-start me-2' id='btn_tambah_user'><i class='fa-solid fa-user-plus'></i> User</button>");
@@ -80,7 +80,7 @@ $(document).ready(function () {
       $("#tarif_add").show();
       $("#tarif_form button").val('tarif_edit');
       $("#tarif_form input[name='id_tarif']").attr('readonly', true);
-      $("#tarif_form").append("<input type='hidden' name='id_tarif_lama' value='" + e[2] + "'>");
+      $("<input>").attr({ type: "hidden", name: "id_tarif_lama" }).val(e[2]).appendTo("#tarif_form");
     }
 
   } else if (e[1] == "catat_edit_meter" || e[1] == "meter_edit&no" || e[1] == "pemakaian_warga") { // petugas
@@ -121,7 +121,7 @@ $(document).ready(function () {
     if (e[1] == "meter_edit&no") {
       $("#tarif_add, #tarif_list, #meter_list").hide();
       $("#meter_add").show();
-      $("#meter_form").append("<input type='hidden' name='no' value='" + e[2] + "'>");
+      $("<input>").attr({ type: "hidden", name: "no" }).val(e[2]).appendTo("#meter_form");
       $("#meter_form button").val('meter_edit');
       $("#meter_form input[name='no']").attr('readonly', true);
 

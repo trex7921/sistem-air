@@ -33,12 +33,19 @@ if ($p == "summary") {
         $q1 = mysqli_query($koneksi, "SELECT COUNT(username) AS jml_pelanggan FROM login WHERE level='warga'");
         $d1 = mysqli_fetch_assoc($q1); $data[0] = $d1;
 
-        $q2 = mysqli_query($koneksi, "SELECT SUM(pemakaian) AS total_pemakaian FROM pemakaian WHERE tgl LIKE '$bulan_default%'");
+        $like_bulan = $bulan_default . "%";
+        $stmt = mysqli_prepare($koneksi, "SELECT SUM(pemakaian) AS total_pemakaian FROM pemakaian WHERE tgl LIKE ?");
+        mysqli_stmt_bind_param($stmt, "s", $like_bulan);
+        mysqli_stmt_execute($stmt);
+        $q2 = mysqli_stmt_get_result($stmt);
         $d2 = mysqli_fetch_assoc($q2);
         $d2['total_pemakaian'] = empty($d2['total_pemakaian']) ? "0" : number_format($d2['total_pemakaian'], 0, ',', '.');
         $data[1] = $d2;
 
-        $q3 = mysqli_query($koneksi, "SELECT COUNT(username) AS tercatat FROM pemakaian WHERE tgl LIKE '$bulan_default%'");
+        $stmt = mysqli_prepare($koneksi, "SELECT COUNT(username) AS tercatat FROM pemakaian WHERE tgl LIKE ?");
+        mysqli_stmt_bind_param($stmt, "s", $like_bulan);
+        mysqli_stmt_execute($stmt);
+        $q3 = mysqli_stmt_get_result($stmt);
         $d3 = mysqli_fetch_assoc($q3); $data[2] = $d3;
 
         $data[3] = array('belum_dicatat' => ($d1['jml_pelanggan'] - $d3['tercatat']));
@@ -48,23 +55,38 @@ if ($p == "summary") {
         $data[0] = mysqli_fetch_assoc($q1);
 
         // PENYELAMATAN KORUPSI DATA: Ambil data ke variabel $d2 sekali saja!
-        $q2 = mysqli_query($koneksi, "SELECT SUM(tagihan) AS total_pemasukan FROM pemakaian WHERE tgl LIKE '$bulan_default%' AND status='LUNAS'");
+        $like_bulan = $bulan_default . "%";
+        $stmt = mysqli_prepare($koneksi, "SELECT SUM(tagihan) AS total_pemasukan FROM pemakaian WHERE tgl LIKE ? AND status='LUNAS'");
+        mysqli_stmt_bind_param($stmt, "s", $like_bulan);
+        mysqli_stmt_execute($stmt);
+        $q2 = mysqli_stmt_get_result($stmt);
         $d2 = mysqli_fetch_assoc($q2);
         $pemasukan = empty($d2['total_pemasukan']) ? 0 : $d2['total_pemasukan'];
         $data[1] = array('total_pemasukan' => "Rp " . number_format($pemasukan, 0, ',', '.'));
 
-        $q3 = mysqli_query($koneksi, "SELECT COUNT(username) AS lunas FROM pemakaian WHERE tgl LIKE '$bulan_default%' AND status='LUNAS'");
+        $stmt = mysqli_prepare($koneksi, "SELECT COUNT(username) AS lunas FROM pemakaian WHERE tgl LIKE ? AND status='LUNAS'");
+        mysqli_stmt_bind_param($stmt, "s", $like_bulan);
+        mysqli_stmt_execute($stmt);
+        $q3 = mysqli_stmt_get_result($stmt);
         $data[2] = mysqli_fetch_assoc($q3);
 
-        $q4 = mysqli_query($koneksi, "SELECT COUNT(username) AS belum_bayar FROM pemakaian WHERE tgl LIKE '$bulan_default%' AND status='BELUM LUNAS'");
+        $stmt = mysqli_prepare($koneksi, "SELECT COUNT(username) AS belum_bayar FROM pemakaian WHERE tgl LIKE ? AND status='BELUM LUNAS'");
+        mysqli_stmt_bind_param($stmt, "s", $like_bulan);
+        mysqli_stmt_execute($stmt);
+        $q4 = mysqli_stmt_get_result($stmt);
         $data[3] = mysqli_fetch_assoc($q4);
     }
     elseif ($level == "warga") {
         if ($bulan_post == "") {
-            $q_warga = mysqli_query($koneksi, "SELECT tgl, waktu, pemakaian, tagihan, status FROM pemakaian WHERE username='$user' ORDER BY tgl DESC, waktu DESC LIMIT 1");
+            $stmt = mysqli_prepare($koneksi, "SELECT tgl, waktu, pemakaian, tagihan, status FROM pemakaian WHERE username=? ORDER BY tgl DESC, waktu DESC LIMIT 1");
+            mysqli_stmt_bind_param($stmt, "s", $user);
         } else {
-            $q_warga = mysqli_query($koneksi, "SELECT tgl, waktu, pemakaian, tagihan, status FROM pemakaian WHERE username='$user' AND tgl LIKE '$bulan_post%'");
+            $like_bulan_post = $bulan_post . "%";
+            $stmt = mysqli_prepare($koneksi, "SELECT tgl, waktu, pemakaian, tagihan, status FROM pemakaian WHERE username=? AND tgl LIKE ?");
+            mysqli_stmt_bind_param($stmt, "ss", $user, $like_bulan_post);
         }
+        mysqli_stmt_execute($stmt);
+        $q_warga = mysqli_stmt_get_result($stmt);
         
         if (mysqli_num_rows($q_warga) > 0) {
             $d_warga = mysqli_fetch_assoc($q_warga);
@@ -156,7 +178,10 @@ elseif ($p == "semua_chart") {
         // H. Cetakan Grafik Khusus Warga Pribadi
         $data_pake_w = array_fill(1, 12, 0);
         $data_tag_w = array_fill(1, 12, 0);
-        $q_warga_chart = mysqli_query($koneksi, "SELECT MONTH(tgl) as bln, pemakaian, tagihan FROM pemakaian WHERE username='$user'");
+        $stmt = mysqli_prepare($koneksi, "SELECT MONTH(tgl) as bln, pemakaian, tagihan FROM pemakaian WHERE username=?");
+        mysqli_stmt_bind_param($stmt, "s", $user);
+        mysqli_stmt_execute($stmt);
+        $q_warga_chart = mysqli_stmt_get_result($stmt);
         while($d = mysqli_fetch_assoc($q_warga_chart)){ 
             $data_pake_w[(int)$d['bln']] = $d['pemakaian']; 
             $data_tag_w[(int)$d['bln']] = $d['tagihan']; 

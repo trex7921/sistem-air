@@ -276,11 +276,16 @@ $level=$dt_user[2];
                                     $status=$_POST['status'];
 
                                     //cek sudah ada atau belum di tabel user
-                                    $qc=mysqli_query($koneksi,"SELECT username FROM login WHERE username='$user'");
+                                    $stmt=mysqli_prepare($koneksi,"SELECT username FROM login WHERE username=?");
+                                    mysqli_stmt_bind_param($stmt, "s", $user);
+                                    mysqli_stmt_execute($stmt);
+                                    $qc=mysqli_stmt_get_result($stmt);
                                     $qj=mysqli_num_rows($qc);
                                     // echo "hasil cek user: $qj";
                                     if (empty($qj)) {
-                                        mysqli_query($koneksi, "INSERT INTO login (username, password, nama, alamat, kota, tlp, level, tipe, status) VALUES ('$user','$pass',\"$nama\",'$alamat','$kota','$tlp','$level','$tipe','$status')");
+                                        $stmt = mysqli_prepare($koneksi, "INSERT INTO login (username, password, nama, alamat, kota, tlp, level, tipe, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                                        mysqli_stmt_bind_param($stmt, "sssssssss", $user, $pass, $nama, $alamat, $kota, $tlp, $level, $tipe, $status);
+                                        mysqli_stmt_execute($stmt);
                                         if (mysqli_affected_rows($koneksi) > 0) {
                                             echo "<div class='alert alert-success alert-dismissible fade show'>
                                                     <button type=button class=btn-close data-bs-dismiss=alert></button>
@@ -313,16 +318,23 @@ $level=$dt_user[2];
                                         $status = $_POST['status'];
 
                                         // CEK PASSWORD LAMA DI DATABASE
-                                        $q_cp = mysqli_query($koneksi, "SELECT password FROM login WHERE username='$user'");
+                                        $stmt = mysqli_prepare($koneksi, "SELECT password FROM login WHERE username=?");
+                                        mysqli_stmt_bind_param($stmt, "s", $user);
+                                        mysqli_stmt_execute($stmt);
+                                        $q_cp = mysqli_stmt_get_result($stmt);
                                         $d_cp = mysqli_fetch_row($q_cp);
                                         $pass_db = $d_cp[0];
 
                                         // LOGIKA PERCABANGAN PASSWORD
                                         if($pass == $pass_db) {
-                                            mysqli_query($koneksi, "UPDATE login SET nama='$nama', alamat='$alamat', kota='$kota', tlp='$tlp', level='$level_form', tipe='$tipe', status='$status' WHERE username='$user'");
+                                            $stmt = mysqli_prepare($koneksi, "UPDATE login SET nama=?, alamat=?, kota=?, tlp=?, level=?, tipe=?, status=? WHERE username=?");
+                                            mysqli_stmt_bind_param($stmt, "ssssssss", $nama, $alamat, $kota, $tlp, $level_form, $tipe, $status, $user);
+                                            mysqli_stmt_execute($stmt);
                                         } else {
                                             $pass2 = password_hash($pass, PASSWORD_DEFAULT);
-                                            mysqli_query($koneksi, "UPDATE login SET password='$pass2', nama='$nama', alamat='$alamat', kota='$kota', tlp='$tlp', level='$level_form', tipe='$tipe', status='$status' WHERE username='$user'");
+                                            $stmt = mysqli_prepare($koneksi, "UPDATE login SET password=?, nama=?, alamat=?, kota=?, tlp=?, level=?, tipe=?, status=? WHERE username=?");
+                                            mysqli_stmt_bind_param($stmt, "sssssssss", $pass2, $nama, $alamat, $kota, $tlp, $level_form, $tipe, $status, $user);
+                                            mysqli_stmt_execute($stmt);
                                         }
 
                                         // PERBAIKAN 1: Paksa terpental balik ke halaman list user biar gak double submit
@@ -340,10 +352,14 @@ $level=$dt_user[2];
                                         $user = $_POST['yuser']; 
                                         
                                         // PERBAIKAN 4 (ANTI-HANTU): Bantai data anak (pemakaian) dulu sebelum akunnya dihapus
-                                        mysqli_query($koneksi, "DELETE FROM pemakaian WHERE username='$user'"); 
+                                        $stmt = mysqli_prepare($koneksi, "DELETE FROM pemakaian WHERE username=?");
+                                        mysqli_stmt_bind_param($stmt, "s", $user);
+                                        mysqli_stmt_execute($stmt);
                                         
                                         // Baru bantai akun induknya
-                                        mysqli_query($koneksi, "DELETE FROM login WHERE username='$user'"); 
+                                        $stmt = mysqli_prepare($koneksi, "DELETE FROM login WHERE username=?");
+                                        mysqli_stmt_bind_param($stmt, "s", $user);
+                                        mysqli_stmt_execute($stmt);
                                         
                                         if (mysqli_affected_rows($koneksi) > 0) {
                                             $_SESSION['res_user'] = 'sukses_hapus';
@@ -365,9 +381,14 @@ $level=$dt_user[2];
                                         $status     = $_POST['status']; 
 
                                         // Cek apakah ID Tarif sudah ada agar tidak error duplikat
-                                        $qc_t = mysqli_query($koneksi,"SELECT id_tarif FROM tarif WHERE id_tarif='$id_tarif'");
+                                        $stmt = mysqli_prepare($koneksi,"SELECT id_tarif FROM tarif WHERE id_tarif=?");
+                                        mysqli_stmt_bind_param($stmt, "s", $id_tarif);
+                                        mysqli_stmt_execute($stmt);
+                                        $qc_t = mysqli_stmt_get_result($stmt);
                                         if (mysqli_num_rows($qc_t) == 0) {
-                                            mysqli_query($koneksi, "INSERT INTO tarif (id_tarif, tipe_tarif, tarif, status) VALUES ('$id_tarif', '$tipe_tarif', '$tarif', '$status')");
+                                            $stmt = mysqli_prepare($koneksi, "INSERT INTO tarif (id_tarif, tipe_tarif, tarif, status) VALUES (?, ?, ?, ?)");
+                                            mysqli_stmt_bind_param($stmt, "ssss", $id_tarif, $tipe_tarif, $tarif, $status);
+                                            mysqli_stmt_execute($stmt);
                                             
                                             if (mysqli_affected_rows($koneksi) > 0) {
                                                 echo "<div class='alert alert-success alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button>Data Tarif BERHASIL ditambahkan.</div>";
@@ -385,7 +406,9 @@ $level=$dt_user[2];
                                         $tarif         = $_POST['tarif'];
                                         $status        = $_POST['status']; 
 
-                                        mysqli_query($koneksi, "UPDATE tarif SET tipe_tarif='$tipe_tarif', tarif='$tarif', status='$status' WHERE id_tarif='$id_tarif'");
+                                        $stmt = mysqli_prepare($koneksi, "UPDATE tarif SET tipe_tarif=?, tarif=?, status=? WHERE id_tarif=?");
+                                        mysqli_stmt_bind_param($stmt, "ssss", $tipe_tarif, $tarif, $status, $id_tarif);
+                                        mysqli_stmt_execute($stmt);
                                         
                                         // PERBAIKAN 2: Paksa Redirect Tarif
                                         if (mysqli_affected_rows($koneksi) > 0) {
@@ -401,7 +424,9 @@ $level=$dt_user[2];
                                        } elseif($t == "tarif_hapus") { 
                                         $id_tarif = $_POST['id_tarif']; 
                                         
-                                        mysqli_query($koneksi, "DELETE FROM tarif WHERE id_tarif='$id_tarif'"); 
+                                        $stmt = mysqli_prepare($koneksi, "DELETE FROM tarif WHERE id_tarif=?");
+                                        mysqli_stmt_bind_param($stmt, "s", $id_tarif);
+                                        mysqli_stmt_execute($stmt);
                                         
                                         if (mysqli_affected_rows($koneksi) > 0) {
                                             echo "<div class='alert alert-success alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button>Data Tarif BERHASIL dihapus lekk...</div>";
@@ -427,7 +452,10 @@ $level=$dt_user[2];
 
                                         if ($pemakaian == 0) { $status = "LUNAS"; }
 
-                                        $q_cek_bulan = mysqli_query($koneksi, "SELECT no FROM pemakaian WHERE username='$username' AND MONTH(tgl) = '$bln_skrg' AND YEAR(tgl) = '$thn_skrg'");
+                                        $stmt = mysqli_prepare($koneksi, "SELECT no FROM pemakaian WHERE username=? AND MONTH(tgl) = ? AND YEAR(tgl) = ?");
+                                        mysqli_stmt_bind_param($stmt, "sss", $username, $bln_skrg, $thn_skrg);
+                                        mysqli_stmt_execute($stmt);
+                                        $q_cek_bulan = mysqli_stmt_get_result($stmt);
                                         
                                         if (mysqli_num_rows($q_cek_bulan) > 0) {
                                             echo "<div class='alert alert-danger alert-dismissible fade show' id='alert-meter'><button type=button class=btn-close data-bs-dismiss=alert></button>GAGAL: Warga ini <b>sudah dicatat</b> meternya pada bulan ini!</div>";
@@ -436,7 +464,9 @@ $level=$dt_user[2];
                                             echo "<div class='alert alert-danger alert-dismissible fade show' id='alert-meter'><button type=button class=btn-close data-bs-dismiss=alert></button>GAGAL: Meter Akhir harus lebih besar dari Meter Awal!</div>";
                                         } 
                                         else {
-                                            mysqli_query($koneksi, "INSERT INTO pemakaian (username, meter_awal, meter_akhir, pemakaian, tgl, waktu, kd_tarif, tagihan, status) VALUES ('$username', '$meter_awal', '$meter_akhir', '$pemakaian', CURRENT_DATE(), CURRENT_TIME(), '$kd_tarif', '$tagihan', '$status')");
+                                            $stmt = mysqli_prepare($koneksi, "INSERT INTO pemakaian (username, meter_awal, meter_akhir, pemakaian, tgl, waktu, kd_tarif, tagihan, status) VALUES (?, ?, ?, ?, CURRENT_DATE(), CURRENT_TIME(), ?, ?, ?)");
+                                            mysqli_stmt_bind_param($stmt, "sssssss", $username, $meter_awal, $meter_akhir, $pemakaian, $kd_tarif, $tagihan, $status);
+                                            mysqli_stmt_execute($stmt);
 
                                             if (mysqli_affected_rows($koneksi) > 0) {
                                                 $_SESSION['res_meter'] = 'sukses_add';
@@ -466,7 +496,9 @@ $level=$dt_user[2];
                                         if($pemakaian < 0) { 
                                             echo "<div class='alert alert-danger alert-dismissible fade show' id='alert-meter'><button type=button class=btn-close data-bs-dismiss=alert></button>GAGAL UBAH: Meter Akhir harus lebih besar dari Meter Awal!</div>";
                                         } else {
-                                            mysqli_query($koneksi, "UPDATE pemakaian SET meter_awal='$meter_awal', meter_akhir='$meter_akhir', pemakaian='$pemakaian', tagihan='$tagihan', status='$status' WHERE no='$no'");
+                                            $stmt = mysqli_prepare($koneksi, "UPDATE pemakaian SET meter_awal=?, meter_akhir=?, pemakaian=?, tagihan=?, status=? WHERE no=?");
+                                            mysqli_stmt_bind_param($stmt, "sssssi", $meter_awal, $meter_akhir, $pemakaian, $tagihan, $status, $no);
+                                            mysqli_stmt_execute($stmt);
                                             
                                             // PERBAIKAN 3: Paksa Redirect Meteran
                                             if (mysqli_affected_rows($koneksi) > 0) {
@@ -484,7 +516,9 @@ $level=$dt_user[2];
                                     elseif($t == "meter_hapus") { 
                                         $no = $_POST['no']; 
                                         
-                                        mysqli_query($koneksi, "DELETE FROM pemakaian WHERE no='$no'"); 
+                                        $stmt = mysqli_prepare($koneksi, "DELETE FROM pemakaian WHERE no=?");
+                                        mysqli_stmt_bind_param($stmt, "i", $no);
+                                        mysqli_stmt_execute($stmt);
                                         
                                         if (mysqli_affected_rows($koneksi) > 0) {
                                             $_SESSION['res_meter'] = 'sukses_hapus';
@@ -506,7 +540,10 @@ $level=$dt_user[2];
                                         
                                         $user=$_GET['user'];
                                         // echo "masuk kesini untuk ngedit user: $user";
-                                            $q = mysqli_query($koneksi, "SELECT password, nama, alamat, kota, tlp, level, tipe, status FROM login WHERE username='$user'");                                      
+                                            $stmt = mysqli_prepare($koneksi, "SELECT password, nama, alamat, kota, tlp, level, tipe, status FROM login WHERE username=?");
+                                            mysqli_stmt_bind_param($stmt, "s", $user);
+                                            mysqli_stmt_execute($stmt);
+                                            $q = mysqli_stmt_get_result($stmt);
                                             $d=mysqli_fetch_row($q);
                                                 
                                                 // 2. KODE ASLI 
@@ -533,7 +570,10 @@ $level=$dt_user[2];
                                         $id_tarif = $_GET['id_tarif']; 
                                         
                                         // Ambil data dari database
-                                        $q_t = mysqli_query($koneksi, "SELECT tipe_tarif, tarif, status FROM tarif WHERE id_tarif='$id_tarif'");
+                                        $stmt = mysqli_prepare($koneksi, "SELECT tipe_tarif, tarif, status FROM tarif WHERE id_tarif=?");
+                                        mysqli_stmt_bind_param($stmt, "s", $id_tarif);
+                                        mysqli_stmt_execute($stmt);
+                                        $q_t = mysqli_stmt_get_result($stmt);
                                         $d_t = mysqli_fetch_row($q_t);
                                         
                                         // Suntikkan ke POST agar otomatis muncul di form HTML-mu
@@ -546,7 +586,10 @@ $level=$dt_user[2];
                                         $no = $_GET['no']; // ngedit meter
                                         
                                         // Ambil data dari database
-                                        $q_m = mysqli_query($koneksi, "SELECT username, meter_awal, meter_akhir FROM pemakaian WHERE no='$no'");
+                                        $stmt = mysqli_prepare($koneksi, "SELECT username, meter_awal, meter_akhir FROM pemakaian WHERE no=?");
+                                        mysqli_stmt_bind_param($stmt, "i", $no);
+                                        mysqli_stmt_execute($stmt);
+                                        $q_m = mysqli_stmt_get_result($stmt);
                                         $d_m = mysqli_fetch_row($q_m);
                                         
                                         // Suntikkan ke POST agar otomatis muncul di form HTML-mu
@@ -554,7 +597,10 @@ $level=$dt_user[2];
                                         
                                         $_POST['meter_awal'] = $d_m[1];
                                         $_POST['meter_akhir'] = $d_m[2];
-                                        $q_stat = mysqli_query($koneksi, "SELECT status FROM pemakaian WHERE no='$no'");
+                                        $stmt = mysqli_prepare($koneksi, "SELECT status FROM pemakaian WHERE no=?");
+                                        mysqli_stmt_bind_param($stmt, "i", $no);
+                                        mysqli_stmt_execute($stmt);
+                                        $q_stat = mysqli_stmt_get_result($stmt);
                                         $d_stat = mysqli_fetch_row($q_stat);
                                         $_POST['status_bayar'] = $d_stat[0];
                                       

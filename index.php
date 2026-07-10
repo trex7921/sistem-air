@@ -73,7 +73,10 @@ $koneksi=$air->koneksi();
                                             $username=$_POST['username'];
                                             $password=$_POST['password'];
                                             
-                                            $qc=mysqli_query($koneksi, "SELECT username,password FROM login WHERE username='$username'");
+                                            $stmt=mysqli_prepare($koneksi, "SELECT username,password FROM login WHERE username=?");
+                                            mysqli_stmt_bind_param($stmt, "s", $username);
+                                            mysqli_stmt_execute($stmt);
+                                            $qc=mysqli_stmt_get_result($stmt);
                                             $dc=mysqli_fetch_row($qc);
 
                                             if(!empty($dc[0])) $user_cek=$dc[0];
