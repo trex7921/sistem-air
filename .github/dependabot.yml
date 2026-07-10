@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # 1. Memantau dependensi PHP (Composer)
+  - package-ecosystem: "composer"
+    directory: "/" # Menandakan file composer.json ada di root folder
+    schedule:
+      interval: "weekly" # Mengecek update/vulnerability seminggu sekali
+
+  # 2. Memantau GitHub Actions (jika kamu pakai workflow otomatis di GitHub)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
