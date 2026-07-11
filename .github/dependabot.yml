@@ -14,8 +14,4 @@ updates:
     schedule:
       interval: "weekly"
     cooldown:
-<<<<<<< HEAD
       default-days: 7 # Wajib menggunakan default-days karena Actions tidak menggunakan semver murni
-=======
-      default-days: 7 # Wajib menggunakan default-days karena Actions tidak menggunakan semver murni
->>>>>>> ba411b5e9e24a1d16157ae5ab24950000e52e999
