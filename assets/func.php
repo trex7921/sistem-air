@@ -20,13 +20,19 @@ class kelas_air {
     // ... (Fungsi dt_user, dt_tarif, tgl_balik, dll BIARKAN SAMA PERSIS, JANGAN DIUBAH)
 
     function dt_user($sesi_user) {
-        $q=mysqli_query($this->koneksi(), "SELECT nama,kota,level FROM login WHERE username='$sesi_user'");
+        $stmt = mysqli_prepare($this->koneksi(), "SELECT nama,kota,level FROM login WHERE username=?");
+        mysqli_stmt_bind_param($stmt, "s", $sesi_user);
+        mysqli_stmt_execute($stmt);
+        $q = mysqli_stmt_get_result($stmt);
         $d=mysqli_fetch_row($q);
         return $d;
     }
 
     function user_to_idtarif($username) {
-        $q=mysqli_query($this->koneksi(), "SELECT tipe FROM login WHERE username='$username'");
+        $stmt = mysqli_prepare($this->koneksi(), "SELECT tipe FROM login WHERE username=?");
+        mysqli_stmt_bind_param($stmt, "s", $username);
+        mysqli_stmt_execute($stmt);
+        $q = mysqli_stmt_get_result($stmt);
         $d=mysqli_fetch_row($q);
         $tipe = $d[0];
     
@@ -35,13 +41,19 @@ class kelas_air {
     }
 
     function tipe_to_kdtarif($tipe) {
-        $q=mysqli_query($this->koneksi(), "SELECT id_tarif, tarif FROM tarif WHERE tipe_tarif='$tipe' AND status='AKTIF'");
+        $stmt = mysqli_prepare($this->koneksi(), "SELECT id_tarif, tarif FROM tarif WHERE tipe_tarif=? AND status='AKTIF'");
+        mysqli_stmt_bind_param($stmt, "s", $tipe);
+        mysqli_stmt_execute($stmt);
+        $q = mysqli_stmt_get_result($stmt);
         $d=mysqli_fetch_row($q);
         return $d[0];
        
     }
     function id_tarif_to_tarif ($id_tarif) {
-        $q=mysqli_query($this->koneksi(), "SELECT tarif FROM tarif WHERE id_tarif='$id_tarif' AND status='AKTIF'");
+        $stmt = mysqli_prepare($this->koneksi(), "SELECT tarif FROM tarif WHERE id_tarif=? AND status='AKTIF'");
+        mysqli_stmt_bind_param($stmt, "s", $id_tarif);
+        mysqli_stmt_execute($stmt);
+        $q = mysqli_stmt_get_result($stmt);
         $d=mysqli_fetch_row($q);
         return $d[0];
     }
@@ -51,7 +63,10 @@ class kelas_air {
         return $tgl_balik;
   }
   function no_to_user($no) {
-    $q=mysqli_query($this->koneksi(), "SELECT username FROM pemakaian WHERE no='$no'");
+    $stmt = mysqli_prepare($this->koneksi(), "SELECT username FROM pemakaian WHERE no=?");
+    mysqli_stmt_bind_param($stmt, "i", $no);
+    mysqli_stmt_execute($stmt);
+    $q = mysqli_stmt_get_result($stmt);
     $d=mysqli_fetch_row($q);
     return $d[0];
   }

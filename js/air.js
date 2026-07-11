@@ -287,7 +287,7 @@ $(document).ready(function () {
     var user = $(this).attr('data-user');
     $("#myModal .modal-body").text("Yakin hapus data: " + user + "?");
     $("#myModal .modal-footer form input[type='hidden']").remove();
-    $("#myModal .modal-footer form").append("<input type='hidden' name='yuser' value='" + user + "'>");
+    $("#myModal .modal-footer form").append($("<input>").attr({ type: "hidden", name: "yuser" }).val(user));
   });
 
   // Modal Hapus Meter
@@ -295,7 +295,7 @@ $(document).ready(function () {
     var no = $(this).attr('data-no');
     $("#modalMeter .modal-body").text("Yakin hapus data: " + no + "?");
     $("#modalMeter .modal-footer form input[type='hidden']").remove();
-    $("#modalMeter .modal-footer form").append("<input type='hidden' name='no' value='" + no + "'>");
+    $("#modalMeter .modal-footer form").append($("<input>").attr({ type: "hidden", name: "no" }).val(no));
 
   });
 
@@ -304,7 +304,7 @@ $(document).ready(function () {
     var id_tarif = $(this).attr('data-id');
     $("#modalTarif .modal-body").text("Yakin hapus data Tarif: " + id_tarif + "?");
     $("#modalTarif .modal-footer form input[type='hidden']").remove();
-    $("#modalTarif .modal-footer form").append("<input type='hidden' name='id_tarif' value='" + id_tarif + "'>");
+    $("#modalTarif .modal-footer form").append($("<input>").attr({ type: "hidden", name: "id_tarif" }).val(id_tarif));
   });
 
 });

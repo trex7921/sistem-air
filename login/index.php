@@ -261,6 +261,22 @@ $level=$dt_user[2];
                             if(isset($_POST['tombol'])) {
                                 $t=$_POST['tombol'];
 
+                                // GUARD OTORISASI: cek level session, bukan input dari klien
+                                $aksi_admin_saja      = array("user_add", "user_edit", "user_hapus");
+                                $aksi_admin_bendahara = array("tarif_add", "tarif_edit", "tarif_hapus");
+                                $aksi_pencatat_meter  = array("meter_add", "meter_edit", "meter_hapus");
+
+                                if (in_array($t, $aksi_admin_saja) && $level != "admin") {
+                                    echo "<script>alert('Akses ditolak. Fitur ini khusus admin.'); window.location.replace('index.php');</script>";
+                                    exit();
+                                } elseif (in_array($t, $aksi_admin_bendahara) && !in_array($level, array("admin", "bendahara"))) {
+                                    echo "<script>alert('Akses ditolak. Fitur ini khusus admin/bendahara.'); window.location.replace('index.php');</script>";
+                                    exit();
+                                } elseif (in_array($t, $aksi_pencatat_meter) && !in_array($level, array("admin", "bendahara", "petugas"))) {
+                                    echo "<script>alert('Akses ditolak.'); window.location.replace('index.php');</script>";
+                                    exit();
+                                }
+
                                 // echo "<div class='alert alert-warning text-center fs-4' style='z-index:9999;'>TOMBOL YANG DITERIMA PHP ADALAH: <b>" . htmlspecialchars($t) . "</b></div>";
                                 if($t=="user_add") {
 
@@ -271,7 +287,7 @@ $level=$dt_user[2];
                                     $alamat=$_POST['alamat'];
                                     $kota=$_POST['kota'];
                                     $tlp=$_POST['tlp'];
-                                    $level=$_POST['level'];
+                                    $level_form=$_POST['level']; // isolasi, gak nimpa $level session (konsisten kaya blok user_edit)
                                     $tipe=$_POST['tipe'];
                                     $status=$_POST['status'];
 
@@ -284,7 +300,7 @@ $level=$dt_user[2];
                                     // echo "hasil cek user: $qj";
                                     if (empty($qj)) {
                                         $stmt = mysqli_prepare($koneksi, "INSERT INTO login (username, password, nama, alamat, kota, tlp, level, tipe, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                                        mysqli_stmt_bind_param($stmt, "sssssssss", $user, $pass, $nama, $alamat, $kota, $tlp, $level, $tipe, $status);
+                                        mysqli_stmt_bind_param($stmt, "sssssssss", $user, $pass, $nama, $alamat, $kota, $tlp, $level_form, $tipe, $status);
                                         mysqli_stmt_execute($stmt);
                                         if (mysqli_affected_rows($koneksi) > 0) {
                                             echo "<div class='alert alert-success alert-dismissible fade show'>
@@ -536,6 +552,19 @@ $level=$dt_user[2];
                             // SAMBUNGKAN KEMBALI AKSI GET SECARA RESMI SEBAGAI PILIHAN KEDUA
                             if(isset($_GET['p'])) {
                                 $p=$_GET ['p'];
+
+                                // GUARD OTORISASI: sama kayak versi POST, cek level session sendiri
+                                if ($p=="user_edit" && $level != "admin") {
+                                    echo "<script>alert('Akses ditolak. Fitur ini khusus admin.'); window.location.replace('index.php');</script>";
+                                    exit();
+                                } elseif ($p=="tarif_edit" && !in_array($level, array("admin", "bendahara"))) {
+                                    echo "<script>alert('Akses ditolak. Fitur ini khusus admin/bendahara.'); window.location.replace('index.php');</script>";
+                                    exit();
+                                } elseif ($p=="meter_edit" && !in_array($level, array("admin", "bendahara", "petugas"))) {
+                                    echo "<script>alert('Akses ditolak.'); window.location.replace('index.php');</script>";
+                                    exit();
+                                }
+
                                 if($p=="user_edit") {
                                         
                                         $user=$_GET['user'];
@@ -553,7 +582,7 @@ $level=$dt_user[2];
                                             $alamat = $d[2];
                                             $kota   = $d[3];
                                             $tlp    = $d[4];
-                                            $level  = $d[5];
+                                            $level_target  = $d[5]; // KODE ASLI pake nama "$level" -> nimpa level session sendiri, ganti biar gak ganggu guard di atas
                                             $tipe   = $d[6];
                                             $status = $d[7];
                                             
@@ -788,8 +817,9 @@ $level=$dt_user[2];
                                         <?php
                                         // Looping PHP untuk memunculkan pilihan level
                                         $level_array = array('admin', 'bendahara', 'petugas', 'warga');
+                                        $level_form = isset($level_target) ? $level_target : (isset($_POST['level']) ? $_POST['level'] : '');
                                         foreach ($level_array as $lv2) {
-                                            if($level==$lv2) $selected= "SELECTED"; 
+                                            if($level_form==$lv2) $selected= "SELECTED"; 
                                             else $selected="";
                                             // ucwords digunakan agar huruf pertama menjadi kapital di tampilan, namun valuenya tetap huruf kecil
                                             echo "<option value='$lv2' $selected>" . ucwords($lv2) . "</option>";
@@ -1346,7 +1376,10 @@ $level=$dt_user[2];
                 <?php //tabel pemakaian pribadi warga sesuai username masing masing
                 // ISOLASI DATA: Hanya panggil berdasarkan session username
                 $sesi_user = $_SESSION['user'];
-                $q_warga = mysqli_query($koneksi,"SELECT tgl, waktu, kd_tarif, meter_awal, meter_akhir, pemakaian, tagihan, status FROM pemakaian WHERE username='$sesi_user' ORDER BY tgl DESC");
+                $stmt = mysqli_prepare($koneksi, "SELECT tgl, waktu, kd_tarif, meter_awal, meter_akhir, pemakaian, tagihan, status FROM pemakaian WHERE username=? ORDER BY tgl DESC");
+                mysqli_stmt_bind_param($stmt, "s", $sesi_user);
+                mysqli_stmt_execute($stmt);
+                $q_warga = mysqli_stmt_get_result($stmt);
                 
                 while($d_warga = mysqli_fetch_row($q_warga)) {
                     $tgl_w      = $d_warga[0];
