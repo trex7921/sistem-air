@@ -79,14 +79,18 @@ if (empty($_SESSION['csrf_token'])) {
                 </div>
             </form>
             <!-- Navbar-->
-            <ul class="navbar-nav ms-auto ms-md-0 me-3 me-lg-4">
+           <ul class="navbar-nav ms-auto ms-md-0 me-3 me-lg-4">
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" id="navbarDropdown" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-user fa-fw"></i></a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                        <li><a class="dropdown-item" href="#!">Settings</a></li>
-                        <li><a class="dropdown-item" href="#!">Activity Log</a></li>
+                        <li><a class="dropdown-item" href="index.php?p=settings"><i class="fas fa-gear me-2 text-secondary"></i>Settings</a></li>
+                        
+                        <?php if($level=="admin" || $level=="bendahara") { ?>
+                        <li><a class="dropdown-item" href="index.php?p=activity_log"><i class="fas fa-clock-rotate-left me-2 text-primary"></i>Activity Log</a></li>
+                        <?php } ?>
+                        
                         <li><hr class="dropdown-divider" /></li>
-                        <li><a class="dropdown-item" href="logout.php">Logout</a></li>
+                        <li><a class="dropdown-item text-danger fw-semibold" href="logout.php"><i class="fas fa-right-from-bracket me-2"></i>Logout</a></li>
                     </ul>
                 </li>
             </ul>
@@ -101,94 +105,38 @@ if (empty($_SESSION['csrf_token'])) {
                                 <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt fa-spin text-danger"></i></div>
                                 Dashboard
                             </a>
-                            <a class="nav-link" href="index.php?p=settings">
-                                <div class="sb-nav-link-icon"><i class="fas fa-gear text-secondary"></i></div>
-                                Settings
-                            </a>
 
-                            <?php
-                            if($level=="admin") {
-                                ?>
+                            <?php if($level=="admin") { ?>
                             <a class="nav-link" href="index.php?p=user">
-                            <div class="sb-nav-link-icon"><i class="fa-regular fa-user fa-flip text-info"></i></div>
+                                <div class="sb-nav-link-icon"><i class="fa-regular fa-user fa-flip text-info"></i></div>
                                 Manajemen User
                             </a>
-                             <a class="nav-link" href="index.php?p=catat_edit_meter">
-                             <div class="sb-nav-link-icon"><i class="fa-solid  fa-file-invoice  fa-shake text-warning"></i></div>
+                            <a class="nav-link" href="index.php?p=catat_edit_meter">
+                                <div class="sb-nav-link-icon"><i class="fa-solid fa-file-invoice fa-shake text-warning"></i></div>
                                 Pemakaian Warga
                             </a>
-                            
-                             <a class="nav-link" href="index.php?p=manajemen_tarif_air">
-                             <div class="sb-nav-link-icon"><i class="fa-solid fa-money-bill-wave fa-beat text-success"></i></div>
+                            <a class="nav-link" href="index.php?p=manajemen_tarif_air">
+                                <div class="sb-nav-link-icon"><i class="fa-solid fa-money-bill-wave fa-beat text-success"></i></div>
                                 Tarif Air Warga
                             </a>
-
-                             <!-- <a class="nav-link" href="index.php?p=infografis_warga">
-                             <div class="sb-nav-link-icon"><i class="fa-regular fa-chart-bar fa-fade text-danger"></i></div>
-                                Infografis Warga
-                            </a> -->
-                            <?php 
-                            } elseif($level=="bendahara") {
-                                ?>
-                             <a class="nav-link" href="index.php?p=catat_edit_meter">
-                             <div class="sb-nav-link-icon"><i class="fa-solid  fa-file-invoice  fa-shake text-warning"></i></div>
+                            <?php } elseif($level=="bendahara") { ?>
+                            <a class="nav-link" href="index.php?p=catat_edit_meter">
+                                <div class="sb-nav-link-icon"><i class="fa-solid fa-file-invoice fa-shake text-warning"></i></div>
                                 Pemakaian Warga
                             </a>
-                            <!-- </a>
-                             <a class="nav-link" href="index.php?p=tagihan_warga">
-                             <div class="sb-nav-link-icon"><i class="fa-solid fa-money-bill-wave fa-beat text-success"></i></div>
-                                Tagihan Warga
-                            </a> -->
-                            
-                              <a class="nav-link" href="index.php?p=manajemen_tarif_air">
-                             <div class="sb-nav-link-icon"><i class="fa-solid fa-hand fa-shake text-success"></i></div>
+                            <a class="nav-link" href="index.php?p=manajemen_tarif_air">
+                                <div class="sb-nav-link-icon"><i class="fa-solid fa-hand fa-shake text-success"></i></div>
                                 Manajemen Tarif Air
                             </a>
-                            
-                             <!-- <a class="nav-link" href="index.php?p=infografis_tagihan_warga">
-                             <div class="sb-nav-link-icon"><i class="fa-solid fa-eye fa-beat-fade text-info"></i></div>
-                                Infografis Tagihan Warga
-                            </a> -->
-                            
-                           
-                            <?php 
-                            } elseif($level == "petugas") { 
-                                ?>
-                                <a class="nav-link" href="index.php?p=catat_edit_meter">
-                                    <div class="sb-nav-link-icon"><i class="fas fa-keyboard fa-bounce  text-warning"></i></div>
-                                    Catat & Edit Meter
-                                </a>
-                                <!-- <a class="nav-link" href="index.php?p=info_pelanggan">
-                                    <div class="sb-nav-link-icon"><i class="fas fa-users fa-flip text-info"></i></div>
-                                    Total Pelanggan
-                                </a>
-                                <a class="nav-link" href="index.php?p=infografis_pemakaian">
-                                    <div class="sb-nav-link-icon"><i class="fas fa-chart-bar fa-beat text-success"></i></div>
-                                    Infografis Pemakaian Warga
-                                </a> -->
-                                <?php 
-                                } elseif($level == "warga") { 
-                                    ?>
+                            <?php } elseif($level == "petugas") { ?>
+                            <a class="nav-link" href="index.php?p=catat_edit_meter">
+                                <div class="sb-nav-link-icon"><i class="fas fa-keyboard fa-bounce text-warning"></i></div>
+                                Catat & Edit Meter
+                            </a>
+                            <?php } elseif($level == "warga") { ?>
                             <a class="nav-link" href="index.php?p=pantau_pemakaian">
                                 <div class="sb-nav-link-icon"><i class="fas fa-tint fa-bounce text-primary"></i></div>
                                 Pantau Pemakaian Air
-                            </a>
-                            <!-- <a class="nav-link" href="index.php?p=tagihan_saya">
-                                <div class="sb-nav-link-icon"><i class="fas fa-file-invoice fa-shake text-success"></i></div>
-                                Tagihan Saya
-                            </a> -->
-                            <!-- <a class="nav-link" href="index.php?p=infografis_warga">
-                                <div class="sb-nav-link-icon"><i class="fas fa-chart-area fa-beat text-info"></i></div>
-                                Infografis Saya
-                            </a> -->
-                            <?php
-                            }
-                            ?>
-
-                            <?php if($level=="admin" || $level=="bendahara") { ?>
-                            <a class="nav-link" href="index.php?p=activity_log">
-                                <div class="sb-nav-link-icon"><i class="fas fa-clock-rotate-left text-dark"></i></div>
-                                Activity Log
                             </a>
                             <?php } ?>
 
