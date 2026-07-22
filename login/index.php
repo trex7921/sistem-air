@@ -1,17 +1,42 @@
 <?php
 session_start();
 date_default_timezone_set('Asia/Jakarta');
-if(empty($_SESSION['user']) && empty($_SESSION['pass'])) {
+if(empty($_SESSION['user'])) {
     echo "<script>window.location.replace('../index.php')</script>";
+    exit();
 }
+
+// TIMEOUT SESI: nganggur >30 menit -> paksa logout. Sebelumnya sesi staff gak punya batas waktu sama sekali,
+// jadi kalau lupa logout dari komputer bersama, sesi admin nyala terus selamanya.
+$batas_diam_detik = 1800;
+if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > $batas_diam_detik)) {
+    session_unset();
+    session_destroy();
+    echo "<script>alert('Sesi berakhir karena tidak ada aktivitas. Silakan login ulang.'); window.location.replace('../index.php');</script>";
+    exit();
+}
+$_SESSION['last_activity'] = time();
 
 // koneksi ke database
 include '../assets/func.php';
 $air = new kelas_air;
 $koneksi = $air->koneksi();
-$koneksi = $air->koneksi();
 $dt_user=$air->dt_user($_SESSION['user']);
 $level=$dt_user[2];
+
+// JARING PENGAMAN: akun di $_SESSION['user'] udah gak ada di DB (dihapus admin pas user lain masih login)
+// dt_user() sekarang balikin [null,null,null] alih-alih Fatal Error, tapi tetap harus dipentalkan ke login
+if ($level === null) {
+    session_destroy();
+    echo "<script>alert('Sesi tidak valid, silakan login ulang.'); window.location.replace('../index.php');</script>";
+    exit();
+}
+
+// TOKEN CSRF: sebelumnya GAK ADA sama sekali di aplikasi ini. Semua form add/edit/hapus cuma modal cookie-session,
+// artinya situs jahat bisa nyuruh browser admin yang lagi login buat auto-submit form (hapus user, ubah tarif, dst).
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 
 ?>
 <!DOCTYPE html>
@@ -36,8 +61,8 @@ $level=$dt_user[2];
     </head>
     
     <script>
-        var level_user = "<?php echo $level; ?>";
-        var user = "<?php echo $_SESSION['user']; ?>";    
+        var level_user = <?php echo json_encode($level); ?>;
+        var user = <?php echo json_encode($_SESSION['user']); ?>;    
     </script>
 
     <body class="sb-nav-fixed">
@@ -75,6 +100,10 @@ $level=$dt_user[2];
                             <a class="nav-link" href="index.php?p=dashboard">
                                 <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt fa-spin text-danger"></i></div>
                                 Dashboard
+                            </a>
+                            <a class="nav-link" href="index.php?p=settings">
+                                <div class="sb-nav-link-icon"><i class="fas fa-gear text-secondary"></i></div>
+                                Settings
                             </a>
 
                             <?php
@@ -155,13 +184,19 @@ $level=$dt_user[2];
                             <?php
                             }
                             ?>
-                            
-                            
+
+                            <?php if($level=="admin" || $level=="bendahara") { ?>
+                            <a class="nav-link" href="index.php?p=activity_log">
+                                <div class="sb-nav-link-icon"><i class="fas fa-clock-rotate-left text-dark"></i></div>
+                                Activity Log
+                            </a>
+                            <?php } ?>
+
                         </div>
                     </div>
                     <div class="sb-sidenav-footer">
-                         <div class="small"><i class="fa-regular fa-user fa-flip text-danger"></i> Logged in as : <?php echo $dt_user[2]?></div>
-                        <?php echo $dt_user [0]. ' (' .$dt_user [1]. ')'?>
+                         <div class="small"><i class="fa-regular fa-user fa-flip text-danger"></i> Logged in as : <?php echo htmlspecialchars($dt_user[2])?></div>
+                        <?php echo htmlspecialchars($dt_user[0]) . ' (' . htmlspecialchars($dt_user[1]) . ')'?>
                     </div>
                 </nav>
             </div>
@@ -170,78 +205,87 @@ $level=$dt_user[2];
                     <div class="container-fluid px-4">
                         <?php
                        // echo $_SERVER['REQUEST_URI'];
-                        $e=explode("=", $_SERVER['REQUEST_URI']);
-                        // echo "<BR>[0]: $e[0] --> [1]: $e[1]";
+                        $p_halaman = isset($_GET['p']) ? $_GET['p'] : '';
                         
-                        if(!empty($e[1])) {
+                        if(!empty($p_halaman)) {
                             // --- BLOK ADMIN & GLOBAL ---
-                            if($e[1]=="dashboard") {
+                            if($p_halaman=="dashboard") {
                                 $h1="Dashboard Si-Air";
                                 $li="Selamat Datang di Dashboard Si-Air Kel 01";
                             }
-                            elseif($e[1]=="user" || $e[1]=="user_edit&user") {
+                            elseif($p_halaman=="user" || $p_halaman=="user_edit") {
                                 $h1="Manajemen User";
                                 $li="Menu untuk CRUD User";
                             }
-                            elseif($e[1]=="pemakaian_warga") {
+                            elseif($p_halaman=="pemakaian_warga") {
                                 $h1="Pemakaian Warga";
                                 $li="Data Pemakaian Air Warga";
                             }
-                            elseif($e[1]=="manajemen_tarif_air" || $e[1]=="tarif_edit&id_tarif") {
+                            elseif($p_halaman=="manajemen_tarif_air" || $p_halaman=="tarif_edit") {
                                 $h1="Tarif Warga";
                                 $li="Lihat dan Edit Tarif Air Seluruh Warga";
                             }
-                            elseif($e[1]=="infografis_warga") {
+                            elseif($p_halaman=="infografis_warga") {
                                 $h1="Infografis Warga";
                                 $li="Visualisasi Grafik Pemakaian dan Tagihan Air Warga";
                             }
-                            elseif($e[1]=="manajemen_tarif_air") {
+                            elseif($p_halaman=="manajemen_tarif_air") {
                                 $h1="Manajemen Tarif Air";
                                 $li="Pengaturan Harga Tarif Air per Kubik";
                             }
 
                             // --- BLOK BENDAHARA ---
-                            elseif($e[1]=="ubah_datameter_warga") {
+                            elseif($p_halaman=="ubah_datameter_warga") {
                                 $h1="Ubah Data Meter Warga";
                                 $li="Halaman untuk mengubah data meter warga";
                             }
-                            elseif($e[1]=="infografis_tagihan_warga") {
+                            elseif($p_halaman=="infografis_tagihan_warga") {
                                 $h1="Infografis Tagihan Warga";
                                 $li="Visualisasi Grafik Tagihan Air Warga";
                             }
-                            elseif($e[1]=="tagihan_warga") {
+                            elseif($p_halaman=="tagihan_warga") {
                                 $h1="Tagihan Warga";
                                 $li="Tagihan Air Bulanan Warga";
                             }
 
                             // --- BLOK PETUGAS ---
-                            elseif($e[1]=="catat_edit_meter" || $e[1]=="meter_edit&no") {
+                            elseif($p_halaman=="catat_edit_meter" || $p_halaman=="meter_edit") {
                                 $h1="Catat & Edit Data Meter";
                                 $li="Masukkan Angka Meteran Bulan Ini";
                             }
-                            // elseif($e[1]=="info_pelanggan") {
+                            // elseif($p_halaman=="info_pelanggan") {
                             //     $h1="Total Pelanggan";
                             //     $li="Informasi Jumlah Pelanggan dan Pemakaian";
                             // }
-                            // elseif($e[1]=="infografis_pemakaian") {
+                            // elseif($p_halaman=="infografis_pemakaian") {
                             //     $h1="Infografis Pemakaian";
                             //     $li="Grafik Total Pemakaian Air Warga";
                             // }
 
                             // --- BLOK WARGA ---
-                            elseif($e[1]=="pantau_pemakaian") {
+                            elseif($p_halaman=="pantau_pemakaian") {
                                 $h1="Pantau Pemakaian";
                                 $li="Riwayat Pemakaian Air Anda";
                             }
-                            elseif($e[1]=="tagihan_saya") {
+                            elseif($p_halaman=="tagihan_saya") {
                                 $h1="Tagihan Saya";
                                 $li="Rincian Tagihan Air Bulanan Anda";
                             }
-                            elseif($e[1]=="infografis_warga") {
+                            elseif($p_halaman=="infografis_warga") {
                                 $h1="Infografis Saya";
                                 $li="Grafik Pemakaian dan Tagihan Air Anda";
                             }
-                            
+
+                            // --- BLOK SEMUA ROLE (settings) & ADMIN/BENDAHARA (activity_log) ---
+                            elseif($p_halaman=="settings") {
+                                $h1="Pengaturan Akun";
+                                $li="Ubah Password dan Data Diri Anda";
+                            }
+                            elseif($p_halaman=="activity_log") {
+                                $h1="Rekam Jejak Aktivitas";
+                                $li="Riwayat Perubahan Data oleh Semua Role";
+                            }
+
                             // --- JARING PENGAMAN (PENTING) ---
                             else {
                                 $h1="Halaman Tidak Ditemukan";
@@ -260,6 +304,12 @@ $level=$dt_user[2];
                          <?php
                             if(isset($_POST['tombol'])) {
                                 $t=$_POST['tombol'];
+
+                                // GUARD CSRF: token wajib cocok sama punya sesi. Ini nutup celah "situs jahat auto-submit form pake sesi admin".
+                                if (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+                                    echo "<script>alert('Sesi form kadaluarsa. Muat ulang halaman dan coba lagi.'); window.location.replace('index.php');</script>";
+                                    exit();
+                                }
 
                                 // GUARD OTORISASI: cek level session, bukan input dari klien
                                 $aksi_admin_saja      = array("user_add", "user_edit", "user_hapus");
@@ -288,6 +338,7 @@ $level=$dt_user[2];
                                     $kota=$_POST['kota'];
                                     $tlp=$_POST['tlp'];
                                     $level_form=$_POST['level']; // isolasi, gak nimpa $level session (konsisten kaya blok user_edit)
+                                    if (!in_array($level_form, array("admin", "bendahara", "petugas", "warga"))) $level_form = "warga"; // JARING PENGAMAN: cegah nilai sembarangan masuk kolom level
                                     $tipe=$_POST['tipe'];
                                     $status=$_POST['status'];
 
@@ -303,6 +354,7 @@ $level=$dt_user[2];
                                         mysqli_stmt_bind_param($stmt, "sssssssss", $user, $pass, $nama, $alamat, $kota, $tlp, $level_form, $tipe, $status);
                                         mysqli_stmt_execute($stmt);
                                         if (mysqli_affected_rows($koneksi) > 0) {
+                                            $air->catat_log($_SESSION['user'], $level, 'user_add', 'login', $user, "tambah user baru, level=$level_form");
                                             echo "<div class='alert alert-success alert-dismissible fade show'>
                                                     <button type=button class=btn-close data-bs-dismiss=alert></button>
                                                     <strong>Data</strong> BERHASIL masuk lekk...                                             
@@ -330,19 +382,15 @@ $level=$dt_user[2];
                                         $kota   = $_POST['kota'];
                                         $tlp    = $_POST['tlp'];
                                         $level_form  = $_POST['level']; // Menggunakan nama terisolasi biar gak bentrok
+                                        if (!in_array($level_form, array("admin", "bendahara", "petugas", "warga"))) $level_form = "warga"; // JARING PENGAMAN
                                         $tipe   = $_POST['tipe'];
                                         $status = $_POST['status'];
 
-                                        // CEK PASSWORD LAMA DI DATABASE
-                                        $stmt = mysqli_prepare($koneksi, "SELECT password FROM login WHERE username=?");
-                                        mysqli_stmt_bind_param($stmt, "s", $user);
-                                        mysqli_stmt_execute($stmt);
-                                        $q_cp = mysqli_stmt_get_result($stmt);
-                                        $d_cp = mysqli_fetch_row($q_cp);
-                                        $pass_db = $d_cp[0];
-
-                                        // LOGIKA PERCABANGAN PASSWORD
-                                        if($pass == $pass_db) {
+                                        // LOGIKA PERCABANGAN PASSWORD: form password dikosongkan by default (lihat blok GET p=user_edit di bawah).
+                                        // Field kosong pas submit = admin gak niat ganti password = jangan sentuh kolom password.
+                                        // (Sebelumnya ini cek $pass == hash asli dari DB -- itu justru ALASAN hash bocor ke HTML, karena hash mentahnya
+                                        // harus di-roundtrip ke form buat dibandingin. Sekarang gak perlu lagi.)
+                                        if (empty($pass)) {
                                             $stmt = mysqli_prepare($koneksi, "UPDATE login SET nama=?, alamat=?, kota=?, tlp=?, level=?, tipe=?, status=? WHERE username=?");
                                             mysqli_stmt_bind_param($stmt, "ssssssss", $nama, $alamat, $kota, $tlp, $level_form, $tipe, $status, $user);
                                             mysqli_stmt_execute($stmt);
@@ -355,6 +403,7 @@ $level=$dt_user[2];
 
                                         // PERBAIKAN 1: Paksa terpental balik ke halaman list user biar gak double submit
                                         if (mysqli_affected_rows($koneksi) > 0) {
+                                            $air->catat_log($_SESSION['user'], $level, 'user_edit', 'login', $user, empty($pass) ? 'ubah data diri user' : 'ubah data diri user + reset password');
                                             $_SESSION['res_user'] = 'sukses_edit';
                                             echo "<script>window.location.replace('index.php?p=user');</script>";
                                             exit();
@@ -378,6 +427,7 @@ $level=$dt_user[2];
                                         mysqli_stmt_execute($stmt);
                                         
                                         if (mysqli_affected_rows($koneksi) > 0) {
+                                            $air->catat_log($_SESSION['user'], $level, 'user_hapus', 'login', $user, 'hapus akun user (+riwayat pemakaian ikut terhapus)');
                                             $_SESSION['res_user'] = 'sukses_hapus';
                                             echo "<script>window.location.replace('index.php?p=user');</script>";
                                             exit();
@@ -407,6 +457,7 @@ $level=$dt_user[2];
                                             mysqli_stmt_execute($stmt);
                                             
                                             if (mysqli_affected_rows($koneksi) > 0) {
+                                                $air->catat_log($_SESSION['user'], $level, 'tarif_add', 'tarif', $id_tarif, "tambah tarif $tipe_tarif = $tarif, status=$status");
                                                 echo "<div class='alert alert-success alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button>Data Tarif BERHASIL ditambahkan.</div>";
                                             } else {
                                                 echo "<div class='alert alert-danger alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button>Data Tarif GAGAL ditambahkan.</div>";
@@ -428,6 +479,7 @@ $level=$dt_user[2];
                                         
                                         // PERBAIKAN 2: Paksa Redirect Tarif
                                         if (mysqli_affected_rows($koneksi) > 0) {
+                                            $air->catat_log($_SESSION['user'], $level, 'tarif_edit', 'tarif', $id_tarif, "ubah tarif $tipe_tarif jadi $tarif, status=$status");
                                             $_SESSION['res_tarif'] = 'sukses_edit';
                                             echo "<script>window.location.replace('index.php?p=manajemen_tarif_air');</script>";
                                             exit();
@@ -445,6 +497,7 @@ $level=$dt_user[2];
                                         mysqli_stmt_execute($stmt);
                                         
                                         if (mysqli_affected_rows($koneksi) > 0) {
+                                            $air->catat_log($_SESSION['user'], $level, 'tarif_hapus', 'tarif', $id_tarif, 'hapus data tarif');
                                             echo "<div class='alert alert-success alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button>Data Tarif BERHASIL dihapus lekk...</div>";
                                         } else {
                                             echo "<div class='alert alert-danger alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button>Data Tarif GAGAL dihapus lekk...</div>"; 
@@ -485,6 +538,7 @@ $level=$dt_user[2];
                                             mysqli_stmt_execute($stmt);
 
                                             if (mysqli_affected_rows($koneksi) > 0) {
+                                                $air->catat_log($_SESSION['user'], $level, 'meter_add', 'pemakaian', $username, "catat meter awal=$meter_awal akhir=$meter_akhir status=$status");
                                                 $_SESSION['res_meter'] = 'sukses_add';
                                                 echo "<script>window.location.replace('index.php?p=catat_edit_meter');</script>";
                                                 exit();
@@ -496,6 +550,24 @@ $level=$dt_user[2];
                                     }
                                     elseif($t == "meter_edit") {
                                         $no             = $_POST['no'];
+
+                                        // GERBANG UMUR DATA: tombolnya emang udah disembunyiin di tabel kalau >30 hari,
+                                        // tapi itu cuma tampilan. POST langsung ke sini gak pernah dicek -- IDOR kalau petugas tau nomor 'no'-nya.
+                                        $stmt_cek = mysqli_prepare($koneksi, "SELECT tgl, status FROM pemakaian WHERE no = ?");
+                                        mysqli_stmt_bind_param($stmt_cek, "i", $no);
+                                        mysqli_stmt_execute($stmt_cek);
+                                        $res_cek = mysqli_stmt_get_result($stmt_cek);
+                                        $data_tgl = mysqli_fetch_row($res_cek);
+                                        mysqli_stmt_close($stmt_cek);
+                                        $status_lama = $data_tgl[1] ?? null; // dipake buat catet "status X -> Y" di log
+                                        if ($data_tgl) {
+                                            $selisih_cek = date_diff(date_create($data_tgl[0]), date_create())->days;
+                                            if ($level == "petugas" && $selisih_cek > 30) {
+                                                echo "<script>alert('Akses ditolak. Data ini sudah lebih dari 30 hari dan terkunci untuk petugas.'); window.location.replace('index.php?p=catat_edit_meter');</script>";
+                                                exit();
+                                            }
+                                        }
+
                                         $meter_awal     = $_POST['meter_awal']; 
                                         $meter_akhir    = $_POST['meter_akhir'];
 
@@ -518,6 +590,8 @@ $level=$dt_user[2];
                                             
                                             // PERBAIKAN 3: Paksa Redirect Meteran
                                             if (mysqli_affected_rows($koneksi) > 0) {
+                                                $detail_log = ($status_lama !== null && $status_lama != $status) ? "status: $status_lama -> $status" : "ubah meter_awal/meter_akhir";
+                                                $air->catat_log($_SESSION['user'], $level, 'meter_edit', 'pemakaian', $no, $detail_log);
                                                 $_SESSION['res_meter'] = 'sukses_edit';
                                                 echo "<script>window.location.replace('index.php?p=catat_edit_meter');</script>";
                                                 exit();
@@ -531,18 +605,67 @@ $level=$dt_user[2];
                                     }
                                     elseif($t == "meter_hapus") { 
                                         $no = $_POST['no']; 
+
+                                        // Sama kaya meter_edit -- delete lebih ngeri daripada edit, gak boleh lebih longgar.
+                                        $stmt_cek = mysqli_prepare($koneksi, "SELECT tgl FROM pemakaian WHERE no = ?");
+                                        mysqli_stmt_bind_param($stmt_cek, "i", $no);
+                                        mysqli_stmt_execute($stmt_cek);
+                                        $res_cek = mysqli_stmt_get_result($stmt_cek);
+                                        $data_tgl = mysqli_fetch_row($res_cek);
+                                        mysqli_stmt_close($stmt_cek);
+                                        if ($data_tgl) {
+                                            $selisih_cek = date_diff(date_create($data_tgl[0]), date_create())->days;
+                                            if ($level == "petugas" && $selisih_cek > 30) {
+                                                echo "<script>alert('Akses ditolak. Data ini sudah lebih dari 30 hari dan terkunci untuk petugas.'); window.location.replace('index.php?p=catat_edit_meter');</script>";
+                                                exit();
+                                            }
+                                        }
                                         
                                         $stmt = mysqli_prepare($koneksi, "DELETE FROM pemakaian WHERE no=?");
                                         mysqli_stmt_bind_param($stmt, "i", $no);
                                         mysqli_stmt_execute($stmt);
                                         
                                         if (mysqli_affected_rows($koneksi) > 0) {
+                                            $air->catat_log($_SESSION['user'], $level, 'meter_hapus', 'pemakaian', $no, 'hapus data pemakaian/meter');
                                             $_SESSION['res_meter'] = 'sukses_hapus';
                                             echo "<script>window.location.replace('index.php?p=catat_edit_meter');</script>";
                                             exit();
                                         } else {
                                             $_SESSION['res_meter'] = 'gagal_hapus';
                                             echo "<script>window.location.replace('index.php?p=catat_edit_meter');</script>";
+                                            exit();
+                                        }
+                                    }
+                                    elseif($t == "profil_edit") {
+                                        // OWNERSHIP, BUKAN ROLE: semua level boleh (ga masuk $aksi_admin_saja dkk di atas),
+                                        // TAPI cuma baris dia sendiri. SENGAJA ga baca username/level/status/tipe dari POST --
+                                        // itu bukan urusan warga ganti sendiri. Target selalu dari session, titik.
+                                        $user_target = $_SESSION['user'];
+                                        $pass        = $_POST['passwet'];
+                                        $nama        = $_POST['nama'];
+                                        $alamat      = $_POST['alamat'];
+                                        $kota        = $_POST['kota'];
+                                        $tlp         = $_POST['tlp'];
+
+                                        if (empty($pass)) {
+                                            $stmt = mysqli_prepare($koneksi, "UPDATE login SET nama=?, alamat=?, kota=?, tlp=? WHERE username=?");
+                                            mysqli_stmt_bind_param($stmt, "sssss", $nama, $alamat, $kota, $tlp, $user_target);
+                                            mysqli_stmt_execute($stmt);
+                                        } else {
+                                            $pass2 = password_hash($pass, PASSWORD_DEFAULT);
+                                            $stmt = mysqli_prepare($koneksi, "UPDATE login SET password=?, nama=?, alamat=?, kota=?, tlp=? WHERE username=?");
+                                            mysqli_stmt_bind_param($stmt, "ssssss", $pass2, $nama, $alamat, $kota, $tlp, $user_target);
+                                            mysqli_stmt_execute($stmt);
+                                        }
+
+                                        if (mysqli_affected_rows($koneksi) > 0) {
+                                            $air->catat_log($user_target, $level, 'profil_edit', 'login', $user_target, empty($pass) ? 'ubah data diri sendiri' : 'ubah data diri sendiri + ganti password');
+                                            $_SESSION['res_settings'] = 'sukses_edit';
+                                            echo "<script>window.location.replace('index.php?p=settings');</script>";
+                                            exit();
+                                        } else {
+                                            $_SESSION['res_settings'] = 'tanpa_perubahan';
+                                            echo "<script>window.location.replace('index.php?p=settings');</script>";
                                             exit();
                                         }
                                     }
@@ -569,26 +692,24 @@ $level=$dt_user[2];
                                         
                                         $user=$_GET['user'];
                                         // echo "masuk kesini untuk ngedit user: $user";
-                                            $stmt = mysqli_prepare($koneksi, "SELECT password, nama, alamat, kota, tlp, level, tipe, status FROM login WHERE username=?");
+                                            // Gak ambil kolom 'password' lagi -- hash gak pernah butuh keluar dari DB buat halaman ini.
+                                            $stmt = mysqli_prepare($koneksi, "SELECT nama, alamat, kota, tlp, level, tipe, status FROM login WHERE username=?");
                                             mysqli_stmt_bind_param($stmt, "s", $user);
                                             mysqli_stmt_execute($stmt);
                                             $q = mysqli_stmt_get_result($stmt);
                                             $d=mysqli_fetch_row($q);
-                                                
-                                                // 2. KODE ASLI 
-                                            $pass   = $d[0];
-                                            $pass2  = password_hash($pass, PASSWORD_DEFAULT); 
-                                            $nama   = $d[1];
-                                            $alamat = $d[2];
-                                            $kota   = $d[3];
-                                            $tlp    = $d[4];
-                                            $level_target  = $d[5]; // KODE ASLI pake nama "$level" -> nimpa level session sendiri, ganti biar gak ganggu guard di atas
-                                            $tipe   = $d[6];
-                                            $status = $d[7];
+
+                                            $nama   = $d[0];
+                                            $alamat = $d[1];
+                                            $kota   = $d[2];
+                                            $tlp    = $d[3];
+                                            $level_target  = $d[4]; // KODE ASLI pake nama "$level" -> nimpa level session sendiri, ganti biar gak ganggu guard di atas
+                                            $tipe   = $d[5];
+                                            $status = $d[6];
                                             
                                             // 3. JEMBATAN LOGIKA PENYELAMAT HTML 
-                                            
-                                            $_POST['passwet'] = $pass;
+                                            // Password SENGAJA dikosongkan -- jangan pernah roundtrip hash asli ke client (Bagian 1, poin 3, Gemini).
+                                            $_POST['passwet'] = "";
                                             $_POST['nama']    = $nama;
                                             $_POST['alamat']  = $alamat;
                                             $_POST['kota']    = $kota;
@@ -780,35 +901,35 @@ $level=$dt_user[2];
                                 <i class="fa-solid fa-user-plus fa-fade text-success me-2"></i> Tambah User
                             </div>
                             <div class="card-body">
-                                <form action="" method="post" id="user_form">           
+                                <form action="" method="post" id="user_form"><input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">           
                                 <div class="mb-3">
                                     <label for="username">Username</label>
-                                    <input type="text" class="form-control" id="username" name="yuser" value="<?php echo isset($_POST['yuser']) ? $_POST['yuser'] : '' ?>" required>
+                                    <input type="text" class="form-control" id="username" name="yuser" value="<?php echo isset($_POST['yuser']) ? htmlspecialchars($_POST['yuser']) : '' ?>" required>
                                 </div>
                                 
                                 <div class="mb-3">
                                     <label for="password">Password</label>
-                                    <input type="password" class="form-control" id="password" name="passwet" value="<?php echo isset($_POST['passwet']) ? $_POST['passwet'] : '' ?>" required>
+                                    <input type="password" class="form-control" id="password" name="passwet" value="<?php echo isset($_POST['passwet']) ? htmlspecialchars($_POST['passwet']) : '' ?>" required>
                                 </div>
                                 
                                 <div class="mb-3">
                                     <label for="nama">Nama</label>
-                                    <input type="text" class="form-control" id="nama" name="nama" value="<?php echo isset($_POST['nama']) ? $_POST['nama'] : '' ?>" required>
+                                    <input type="text" class="form-control" id="nama" name="nama" value="<?php echo isset($_POST['nama']) ? htmlspecialchars($_POST['nama']) : '' ?>" required>
                                 </div>
                                 
                             <div class="mb-3">
                                     <label for="alamat">Alamat</label>
-                                    <textarea class="form-control" id="alamat" name="alamat" required><?php echo isset($_POST['alamat']) ? $_POST['alamat'] : '' ?></textarea>
+                                    <textarea class="form-control" id="alamat" name="alamat" required><?php echo isset($_POST['alamat']) ? htmlspecialchars($_POST['alamat']) : '' ?></textarea>
                                 </div>
                                 
                                 <div class="mb-3">
                                     <label for="kota">Kota</label>
-                                    <input type="text" class="form-control" id="kota" name="kota" value="<?php echo isset($_POST['kota']) ? $_POST['kota'] : '' ?>" required>
+                                    <input type="text" class="form-control" id="kota" name="kota" value="<?php echo isset($_POST['kota']) ? htmlspecialchars($_POST['kota']) : '' ?>" required>
                                 </div>
                                 
                                 <div class="mb-3">
                                     <label for="telepon">Telepon</label>
-                                    <input type="text" class="form-control" id="telepon" name="tlp" value="<?php echo isset($_POST['tlp']) ? $_POST['tlp'] : '' ?>" required>
+                                    <input type="text" class="form-control" id="telepon" name="tlp" value="<?php echo isset($_POST['tlp']) ? htmlspecialchars($_POST['tlp']) : '' ?>" required>
                                 </div>
                                 
                                 <div class="mb-3">
@@ -817,7 +938,7 @@ $level=$dt_user[2];
                                         <?php
                                         // Looping PHP untuk memunculkan pilihan level
                                         $level_array = array('admin', 'bendahara', 'petugas', 'warga');
-                                        $level_form = isset($level_target) ? $level_target : (isset($_POST['level']) ? $_POST['level'] : '');
+                                        $level_form = isset($level_target) ? $level_target : (isset($_POST['level']) ? htmlspecialchars($_POST['level']) : '');
                                         foreach ($level_array as $lv2) {
                                             if($level_form==$lv2) $selected= "SELECTED"; 
                                             else $selected="";
@@ -909,16 +1030,19 @@ $level=$dt_user[2];
                                     
                                    <tbody>
                                         <?php
+                                        // GERBANG SERVER-SIDE: cuma admin yang boleh liat baris data user (nama/alamat/telp warga+staff).
+                                        // Sebelumnya tabel ini kekirim penuh ke SEMUA role, cuma disembunyiin lewat .hide() di air.js -> bocor total via View Source.
+                                        if ($level == "admin") {
                                          $q=mysqli_query($koneksi,"SELECT username,nama,alamat,kota,tlp,level,tipe,status FROM login ORDER BY level ASC");
                                          while($d=mysqli_fetch_row($q)) {
-                                            $user    = $d[0];
-                                            $nama    = $d[1];
-                                            $alamat  = $d[2];
-                                            $kota    = $d[3];
-                                            $telp    = $d[4];
-                                            $u_level = $d[5]; // SOLUSI: Menggunakan $u_level agar tidak merusak level admin login utama
-                                            $tipe    = $d[6];
-                                            $status  = $d[7];
+                                            $user    = htmlspecialchars($d[0]);
+                                            $nama    = htmlspecialchars($d[1]);
+                                            $alamat  = htmlspecialchars($d[2]);
+                                            $kota    = htmlspecialchars($d[3]);
+                                            $telp    = htmlspecialchars($d[4]);
+                                            $u_level = htmlspecialchars($d[5]); // SOLUSI: Menggunakan $u_level agar tidak merusak level admin login utama
+                                            $tipe    = htmlspecialchars($d[6]);
+                                            $status  = htmlspecialchars($d[7]);
 
                                             echo "<tr>
                                                     <td>$user</td>
@@ -935,6 +1059,9 @@ $level=$dt_user[2];
 
                                                 </tr>";
                                          }
+                                        } else {
+                                            echo "<tr><td colspan='9' class='text-center text-muted'>Akses ditolak: data ini khusus admin.</td></tr>";
+                                        }
                                         ?>
                                     </tbody>
                                 </table>
@@ -946,10 +1073,10 @@ $level=$dt_user[2];
         <i class="fa-solid fa-money-bill-wave text-success me-2"></i> Tambah Tarif
     </div>
     <div class="card-body">
-        <form action="" method="post" id="tarif_form">
+        <form action="" method="post" id="tarif_form"><input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
             <div class="mb-3">
                 <label for="id_tarif">ID Tarif</label>
-                <input type="text" class="form-control" id="id_tarif" name="id_tarif" value="<?php echo isset($_POST['id_tarif']) ? $_POST['id_tarif'] : '' ?>" required>
+                <input type="text" class="form-control" id="id_tarif" name="id_tarif" value="<?php echo isset($_POST['id_tarif']) ? htmlspecialchars($_POST['id_tarif']) : '' ?>" required>
             </div>
             <div class="mb-3">
                 <label for="tipe_tarif">Tipe Tarif</label>
@@ -960,7 +1087,7 @@ $level=$dt_user[2];
             </div>
             <div class="mb-3">
                 <label for="tarif">Tarif (Rp)</label>
-                <input type="number" class="form-control" id="tarif" name="tarif" value="<?php echo isset($_POST['tarif']) ? $_POST['tarif'] : '' ?>" required>
+                <input type="number" class="form-control" id="tarif" name="tarif" value="<?php echo isset($_POST['tarif']) ? htmlspecialchars($_POST['tarif']) : '' ?>" required>
             </div>
             <div class="mb-3">
                 <label class="d-block">Status</label>
@@ -1007,12 +1134,14 @@ $level=$dt_user[2];
             </thead>
             <tbody>
                 <?php
+                // GERBANG SERVER-SIDE: samain sama syarat nulis (tarif_edit) -> admin/bendahara doang
+                if (in_array($level, array("admin", "bendahara"))) {
                 $q_tarif = mysqli_query($koneksi,"SELECT id_tarif, tipe_tarif, tarif, status FROM tarif ORDER BY id_tarif ASC");
                 while($d_tarif = mysqli_fetch_row($q_tarif)) {
-                    $id_tarif   = $d_tarif[0];
-                    $tipe_tarif = $d_tarif[1];
-                    $tarif      = $d_tarif[2];
-                    $status     = $d_tarif[3];
+                    $id_tarif   = htmlspecialchars($d_tarif[0]);
+                    $tipe_tarif = htmlspecialchars($d_tarif[1]);
+                    $tarif      = htmlspecialchars($d_tarif[2]);
+                    $status     = htmlspecialchars($d_tarif[3]);
 
                     echo "<tr>
                             <td>$id_tarif</td>
@@ -1024,6 +1153,9 @@ $level=$dt_user[2];
     <button type='button' class='btn btn-outline-danger btn-sm' data-bs-toggle='modal' data-bs-target='#modalTarif' data-id='$id_tarif'>Hapus</button>
 </td>
                           </tr>";
+                }
+                } else {
+                    echo "<tr><td colspan='5' class='text-center text-muted'>Akses ditolak.</td></tr>";
                 }
                 ?>
             </tbody>
@@ -1088,11 +1220,15 @@ $level=$dt_user[2];
             </thead>
             <tbody>
                 <?php
+                // GERBANG SERVER-SIDE: samain sama syarat nulis (aksi_pencatat_meter) -> admin/bendahara/petugas.
+                // warga sebelumnya dapat tabel FULL semua warga (nama+data meter orang lain) via view-source,
+                // plus tombol Ubah/Hapus nongol juga buat dia gara-gara else-branch di bawah gak eksklusif ke petugas.
+                if (in_array($level, array("admin", "bendahara", "petugas"))) {
                 $q_pemakaian = mysqli_query($koneksi,"SELECT no, username, meter_awal, meter_akhir, pemakaian, tgl, waktu, tagihan, status FROM pemakaian ORDER BY tgl DESC, username ASC");
                 while($d_pemakaian = mysqli_fetch_row($q_pemakaian)) {
                     $no         = $d_pemakaian[0];
                     $dt_user2   = $air->dt_user($d_pemakaian[1]); 
-                    $nama       = $dt_user2[0];
+                    $nama       = htmlspecialchars($dt_user2[0]);
                     $meter_awal = $d_pemakaian[2];
                     $meter_akhir = $d_pemakaian[3];
                     $pemakaian  = $d_pemakaian[4];
@@ -1136,6 +1272,9 @@ $level=$dt_user[2];
                      }
                      echo "</tr>";
                 }
+                } else {
+                    echo "<tr><td colspan='7' class='text-center text-muted'>Akses ditolak.</td></tr>";
+                }
                 ?>
             </tbody>
         </table>
@@ -1148,10 +1287,10 @@ $level=$dt_user[2];
     </div>
     <div class="card-body">
         <?php
-        if (isset($e[1]) && $e[1] == "meter_edit&no") $dis = 'disabled';
+        if (isset($_GET['p']) && $_GET['p'] == "meter_edit") $dis = 'disabled';
         else $dis = "";
         ?>
-        <form action="" method="post" id="meter_form">
+        <form action="" method="post" id="meter_form"><input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
             <div class="mb-3">
                 <label for="username">Nama Warga</label>
                 <select class="form-select" id="username" name="username" required <?php echo $dis; ?>>
@@ -1179,11 +1318,11 @@ $level=$dt_user[2];
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label for="meter_awal">Meter Awal (m³)</label>
-                    <input type="number" class="form-control" id="meter_awal" name="meter_awal" value="<?php echo isset($_POST['meter_awal']) ? $_POST['meter_awal'] : ''; ?>" required <?php echo $kunci_meter_awal; ?>>
+                    <input type="number" class="form-control" id="meter_awal" name="meter_awal" value="<?php echo isset($_POST['meter_awal']) ? htmlspecialchars($_POST['meter_awal']) : ''; ?>" required <?php echo $kunci_meter_awal; ?>>
                 </div>
                 <div class="col-md-6">
                     <label for="meter_akhir">Meter Akhir (m³)</label>
-                    <input type="number" class="form-control" id="meter_akhir" name="meter_akhir" value="<?php echo isset($_POST['meter_akhir']) ? $_POST['meter_akhir'] : ''; ?>" required <?php echo $kunci_meter_akhir; ?>>
+                    <input type="number" class="form-control" id="meter_akhir" name="meter_akhir" value="<?php echo isset($_POST['meter_akhir']) ? htmlspecialchars($_POST['meter_akhir']) : ''; ?>" required <?php echo $kunci_meter_akhir; ?>>
                 </div>
             </div>
 
@@ -1232,8 +1371,8 @@ $level=$dt_user[2];
             }
             ?>
             <script>
-            const currentLevel = typeof level_user !== 'undefined' ? level_user : "<?php echo $dt_user[2]; ?>";
-            const currentParam = "<?php echo isset($_GET['p']) ? $_GET['p'] : ''; ?>";
+            const currentLevel = typeof level_user !== 'undefined' ? level_user : <?php echo json_encode($dt_user[2]); ?>;
+            const currentParam = <?php echo json_encode(isset($_GET['p']) ? $_GET['p'] : ''); ?>;
             const riwayatMeter = <?php echo json_encode($data_last_meter); ?>;
 
             document.querySelector('#meter_form #username').addEventListener('change', function() {
@@ -1418,7 +1557,7 @@ $level=$dt_user[2];
       <div class="modal-body">
         </div>
       <div class="modal-footer">
-        <form action="" method="post"> <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tidak</button> <button type="submit" class="btn btn-danger" name="tombol" value="user_hapus">Ya</button> </form>
+        <form action="" method="post"><input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>"> <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tidak</button> <button type="submit" class="btn btn-danger" name="tombol" value="user_hapus">Ya</button> </form>
       </div>
     </div>
   </div>
@@ -1433,7 +1572,7 @@ $level=$dt_user[2];
                                                             <div class="modal-body">
                                                                 </div>
                                                             <div class="modal-footer">
-                                                                <form action="" method="post"> 
+                                                                <form action="" method="post"> <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tidak</button> 
                                                                     <button type="submit" class="btn btn-danger" name="tombol" value="tarif_hapus">Ya</button> 
                                                                 </form>
@@ -1451,12 +1590,107 @@ $level=$dt_user[2];
             <div class="modal-body">
                 </div>
             <div class="modal-footer">
-                <form action="" method="post"> 
+                <form action="" method="post"> <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tidak</button> 
                     <button type="submit" class="btn btn-danger" name="tombol" value="meter_hapus">Ya</button> 
                 </form>
             </div>
         </div>
+    </div>
+</div>
+
+<?php
+// Data form settings -- SELALU dari session, TIDAK PERNAH dari GET/POST manapun. Ga ada parameter
+// username buat halaman ini sama sekali, jadi ga ada celah IDOR "ganti username di URL edit punya orang lain".
+$stmt = mysqli_prepare($koneksi, "SELECT nama, alamat, kota, tlp FROM login WHERE username=?");
+mysqli_stmt_bind_param($stmt, "s", $_SESSION['user']);
+mysqli_stmt_execute($stmt);
+$d_profil = mysqli_fetch_row(mysqli_stmt_get_result($stmt));
+?>
+<div class="card mb-4" id="settings_page" style="display:none;">
+    <div class="card-header">
+        <i class="fas fa-gear text-secondary me-2"></i> Pengaturan Akun
+    </div>
+    <div class="card-body">
+        <?php
+        if (isset($_SESSION['res_settings'])) {
+            if ($_SESSION['res_settings'] == 'sukses_edit') {
+                echo "<div class='alert alert-success alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button>Data berhasil diperbarui.</div>";
+            } elseif ($_SESSION['res_settings'] == 'tanpa_perubahan') {
+                echo "<div class='alert alert-warning alert-dismissible fade show'><button type=button class=btn-close data-bs-dismiss=alert></button>Tidak ada perubahan tersimpan.</div>";
+            }
+            unset($_SESSION['res_settings']);
+        }
+        ?>
+        <form action="" method="post" id="settings_form">
+            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+            <div class="mb-3">
+                <label for="set_nama">Nama</label>
+                <input type="text" class="form-control" id="set_nama" name="nama" value="<?php echo htmlspecialchars($d_profil[0] ?? ''); ?>" required>
+            </div>
+            <div class="mb-3">
+                <label for="set_alamat">Alamat</label>
+                <input type="text" class="form-control" id="set_alamat" name="alamat" value="<?php echo htmlspecialchars($d_profil[1] ?? ''); ?>" required>
+            </div>
+            <div class="mb-3">
+                <label for="set_kota">Kota</label>
+                <input type="text" class="form-control" id="set_kota" name="kota" value="<?php echo htmlspecialchars($d_profil[2] ?? ''); ?>" required>
+            </div>
+            <div class="mb-3">
+                <label for="set_tlp">No. Telepon</label>
+                <input type="text" class="form-control" id="set_tlp" name="tlp" value="<?php echo htmlspecialchars($d_profil[3] ?? ''); ?>" required>
+            </div>
+            <div class="mb-3">
+                <label for="set_pass">Password Baru <span class="text-muted small">(kosongkan kalau tidak ingin ganti)</span></label>
+                <input type="password" class="form-control" id="set_pass" name="passwet" placeholder="••••••••" autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn btn-primary" name="tombol" value="profil_edit">Simpan Perubahan</button>
+        </form>
+    </div>
+</div>
+
+<?php
+// Query cuma jalan kalau levelnya emang boleh liat -- warga yang paksa buka ?p=activity_log lewat URL
+// tetap ga dapet baris data apa pun, cuma dapet pesan ditolak di bawah.
+if ($level == "admin" || $level == "bendahara") {
+    $q_log = mysqli_query($koneksi, "SELECT actor_username, actor_level, aksi, tabel_target, id_target, detail, created_at FROM audit_log ORDER BY created_at DESC LIMIT 100");
+}
+?>
+<div class="card mb-4" id="activity_log_page" style="display:none;">
+    <div class="card-header">
+        <i class="fas fa-clock-rotate-left text-dark me-2"></i> Rekam Jejak Aktivitas <span class="text-muted small">(100 terbaru)</span>
+    </div>
+    <div class="card-body">
+        <?php if ($level == "admin" || $level == "bendahara") { ?>
+        <div class="table-responsive">
+            <table class="table table-striped table-sm datatable-log">
+                <thead>
+                    <tr>
+                        <th>Waktu</th>
+                        <th>Pelaku</th>
+                        <th>Role</th>
+                        <th>Aksi</th>
+                        <th>Target</th>
+                        <th>Detail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php while ($row = mysqli_fetch_assoc($q_log)) { ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($row['created_at']); ?></td>
+                        <td><?php echo htmlspecialchars($row['actor_username']); ?></td>
+                        <td><?php echo htmlspecialchars($row['actor_level']); ?></td>
+                        <td><?php echo htmlspecialchars($row['aksi']); ?></td>
+                        <td><?php echo htmlspecialchars($row['tabel_target'] . ' #' . $row['id_target']); ?></td>
+                        <td><?php echo htmlspecialchars($row['detail']); ?></td>
+                    </tr>
+                    <?php } ?>
+                </tbody>
+            </table>
+        </div>
+        <?php } else { ?>
+        <div class="alert alert-warning">Halaman ini khusus admin/bendahara.</div>
+        <?php } ?>
     </div>
 </div>
                 </main>

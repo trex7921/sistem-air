@@ -5,10 +5,25 @@ include '../assets/func.php';
 $air = new kelas_air;
 $koneksi = $air->koneksi(); 
 
+// GERBANG AUTH: sebelumnya nol pengecekan eksplisit di sini. Request tanpa sesi numpuk ke $level=null,
+// yang KEBETULAN gagal di semua percabangan di bawah (jadi nol data yang kekirim) -- itu perlindungan
+// gak sengaja, bukan keputusan sadar, dan rapuh kalau logikanya berubah nanti. Sekarang ditolak jelas.
+if (empty($_SESSION['user'])) {
+    http_response_code(401);
+    echo json_encode(array('error' => 'Unauthorized'));
+    exit();
+}
+
 $p = $_POST['p'];
 $user    = $_SESSION['user'];            
 $dt_user = $air->dt_user($user);         
 $level   = $dt_user[2];                  
+
+if ($level === null) {
+    http_response_code(401);
+    echo json_encode(array('error' => 'Unauthorized'));
+    exit();
+}
 
 // ==========================================
 // LOGIKA CERDAS: TANPA PILIH BULAN (DEFAULT)
@@ -109,12 +124,18 @@ if ($p == "summary") {
 // ==========================================
 elseif ($p == "semua_chart") {
     $response = array();
+
+    // Batas tahun berjalan, dipake buat filter WHERE (bukan bungkus YEAR(tgl) -- itu sama rapuhnya
+    // sama MONTH(tgl) buat index). $tgl >= awal DAN < akhir bisa pake index kalau ada, YEAR()/MONTH() enggak.
+    $tahun_ini    = date("Y");
+    $awal_tahun   = $tahun_ini . "-01-01";
+    $akhir_tahun  = ($tahun_ini + 1) . "-01-01";
     
     if ($level == "admin" || $level == "bendahara" || $level == "petugas") {
         
         // A. Pemakaian Total (Cetakan Kue 12 Bulan)
         $data_pemakaian = array_fill(1, 12, 0); // Isi bulan 1-12 dengan angka 0
-        $q_pemakaian = mysqli_query($koneksi, "SELECT MONTH(tgl) as bln, SUM(pemakaian) as total FROM pemakaian GROUP BY MONTH(tgl)");
+        $q_pemakaian = mysqli_query($koneksi, "SELECT MONTH(tgl) as bln, SUM(pemakaian) as total FROM pemakaian WHERE tgl >= '$awal_tahun' AND tgl < '$akhir_tahun' GROUP BY MONTH(tgl)");
         while($d = mysqli_fetch_assoc($q_pemakaian)){ $data_pemakaian[(int)$d['bln']] = $d['total']; }
         
         $arr_pemakaian = [];
@@ -130,7 +151,7 @@ elseif ($p == "semua_chart") {
         // C. Tercatat & Belum Tercatat (Cetakan Kue 12 Bulan)
         $tot_warga = mysqli_fetch_assoc(mysqli_query($koneksi, "SELECT COUNT(username) as tot FROM login WHERE level='warga'"))['tot'];
         $data_catat = array_fill(1, 12, 0);
-        $q_catat = mysqli_query($koneksi, "SELECT MONTH(tgl) as bln, COUNT(username) as jml FROM pemakaian GROUP BY MONTH(tgl)");
+        $q_catat = mysqli_query($koneksi, "SELECT MONTH(tgl) as bln, COUNT(username) as jml FROM pemakaian WHERE tgl >= '$awal_tahun' AND tgl < '$akhir_tahun' GROUP BY MONTH(tgl)");
         while($d = mysqli_fetch_assoc($q_catat)){ $data_catat[(int)$d['bln']] = $d['jml']; }
         
         $arr_tercatat = []; $arr_belum = [];
@@ -143,7 +164,7 @@ elseif ($p == "semua_chart") {
         if ($level == "admin" || $level == "bendahara") {
             // D. Tagihan Per Bulan
             $data_tagihan = array_fill(1, 12, 0);
-            $q_tagihan = mysqli_query($koneksi, "SELECT MONTH(tgl) as bln, SUM(tagihan) as total FROM pemakaian GROUP BY MONTH(tgl)");
+            $q_tagihan = mysqli_query($koneksi, "SELECT MONTH(tgl) as bln, SUM(tagihan) as total FROM pemakaian WHERE tgl >= '$awal_tahun' AND tgl < '$akhir_tahun' GROUP BY MONTH(tgl)");
             while($d = mysqli_fetch_assoc($q_tagihan)){ $data_tagihan[(int)$d['bln']] = $d['total']; }
             $arr_tagihan = [];
             for($m=1; $m<=12; $m++){ $arr_tagihan[] = $air->bln($m); $arr_tagihan[] = $data_tagihan[$m]; }
@@ -151,7 +172,7 @@ elseif ($p == "semua_chart") {
 
             // E. Pemasukan Lunas per Bulan
             $data_pemasukan = array_fill(1, 12, 0);
-            $q_lunas_sum = mysqli_query($koneksi, "SELECT MONTH(tgl) as bln, SUM(tagihan) as total FROM pemakaian WHERE status='LUNAS' GROUP BY MONTH(tgl)");
+            $q_lunas_sum = mysqli_query($koneksi, "SELECT MONTH(tgl) as bln, SUM(tagihan) as total FROM pemakaian WHERE status='LUNAS' AND tgl >= '$awal_tahun' AND tgl < '$akhir_tahun' GROUP BY MONTH(tgl)");
             while($d = mysqli_fetch_assoc($q_lunas_sum)){ $data_pemasukan[(int)$d['bln']] = $d['total']; }
             $arr_pemasukan = [];
             for($m=1; $m<=12; $m++){ $arr_pemasukan[] = $air->bln($m); $arr_pemasukan[] = $data_pemasukan[$m]; }
@@ -159,7 +180,7 @@ elseif ($p == "semua_chart") {
 
             // F. Jumlah Warga Sudah Lunas
             $data_sdh = array_fill(1, 12, 0);
-            $q_sdh = mysqli_query($koneksi, "SELECT MONTH(tgl) as bln, COUNT(username) as jml FROM pemakaian WHERE status='LUNAS' GROUP BY MONTH(tgl)");
+            $q_sdh = mysqli_query($koneksi, "SELECT MONTH(tgl) as bln, COUNT(username) as jml FROM pemakaian WHERE status='LUNAS' AND tgl >= '$awal_tahun' AND tgl < '$akhir_tahun' GROUP BY MONTH(tgl)");
             while($d = mysqli_fetch_assoc($q_sdh)){ $data_sdh[(int)$d['bln']] = $d['jml']; }
             $arr_sdh = [];
             for($m=1; $m<=12; $m++){ $arr_sdh[] = $air->bln($m); $arr_sdh[] = $data_sdh[$m]; }
@@ -167,7 +188,7 @@ elseif ($p == "semua_chart") {
 
             // G. Jumlah Warga Belum Lunas
             $data_blm = array_fill(1, 12, 0);
-            $q_blm = mysqli_query($koneksi, "SELECT MONTH(tgl) as bln, COUNT(username) as jml FROM pemakaian WHERE status='BELUM LUNAS' GROUP BY MONTH(tgl)");
+            $q_blm = mysqli_query($koneksi, "SELECT MONTH(tgl) as bln, COUNT(username) as jml FROM pemakaian WHERE status='BELUM LUNAS' AND tgl >= '$awal_tahun' AND tgl < '$akhir_tahun' GROUP BY MONTH(tgl)");
             while($d = mysqli_fetch_assoc($q_blm)){ $data_blm[(int)$d['bln']] = $d['jml']; }
             $arr_blm = [];
             for($m=1; $m<=12; $m++){ $arr_blm[] = $air->bln($m); $arr_blm[] = $data_blm[$m]; }
@@ -178,8 +199,8 @@ elseif ($p == "semua_chart") {
         // H. Cetakan Grafik Khusus Warga Pribadi
         $data_pake_w = array_fill(1, 12, 0);
         $data_tag_w = array_fill(1, 12, 0);
-        $stmt = mysqli_prepare($koneksi, "SELECT MONTH(tgl) as bln, pemakaian, tagihan FROM pemakaian WHERE username=?");
-        mysqli_stmt_bind_param($stmt, "s", $user);
+        $stmt = mysqli_prepare($koneksi, "SELECT MONTH(tgl) as bln, pemakaian, tagihan FROM pemakaian WHERE username=? AND tgl >= ? AND tgl < ?");
+        mysqli_stmt_bind_param($stmt, "sss", $user, $awal_tahun, $akhir_tahun);
         mysqli_stmt_execute($stmt);
         $q_warga_chart = mysqli_stmt_get_result($stmt);
         while($d = mysqli_fetch_assoc($q_warga_chart)){ 

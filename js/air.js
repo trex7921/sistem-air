@@ -4,8 +4,9 @@ $(document).ready(function () {
   }
   // Kalau jquery tidak jalan, lakukan Hard Refresh (Ctrl+F5)
   uri = window.location.href;
-  e = uri.split("=");
-  console.log("URI: " + uri + " e[1]:" + e[1] + " e[2]:" + e[2]);
+  params = new URLSearchParams(window.location.search);
+  p = params.get("p") || "";
+  console.log("URI: " + uri + " p:" + p);
 
   // tombol garis tiga
 
@@ -16,7 +17,7 @@ $(document).ready(function () {
 
   // add user
 
-  if (e[1] == "user" || e[1] == "user_edit&user") {
+  if (p == "user" || p == "user_edit") {
     if ($("#alert-user").hasClass("alert-danger")) {
       // Jika username kembar, sembunyikan tabel dan PAKSA form tetap terbuka
       $("#summary, #chart, #pilih_waktu, #user_list").hide();
@@ -27,12 +28,12 @@ $(document).ready(function () {
       $("#user_list").show();
     }
 
-    if (e[1] == "user_edit&user") {
+    if (p == "user_edit") {
       $("#user_list").hide();
       $("#user_add").show();
       $("#user_form button").val("user_edit");
       $("#user_form input[name='yuser']").attr('readonly', true);
-      $("<input>").attr({ type: "hidden", name: "yuser" }).val(e[2]).appendTo("#user_form");
+      $("<input>").attr({ type: "hidden", name: "yuser" }).val(params.get("user")).appendTo("#user_form");
     }
     if ($("#btn_tambah_user").length === 0) {
       $(".datatable-dropdown").append("<button type=button class='btn btn-success float-start me-2' id='btn_tambah_user'><i class='fa-solid fa-user-plus'></i> User</button>");
@@ -44,7 +45,7 @@ $(document).ready(function () {
     });
 
     // menu tarif
-  } else if (e[1] == "manajemen_tarif_air" || e[1] == "tarif_edit&id_tarif") {
+  } else if (p == "manajemen_tarif_air" || p == "tarif_edit") {
 
     if ($("#alert-tarif").hasClass("alert-warning") || $("#alert-tarif").hasClass("alert-danger")) {
       $("#summary, #chart, #user_add, #user_list, #tarif_list, #pilih_waktu, #chart").hide();
@@ -75,15 +76,15 @@ $(document).ready(function () {
       $("#tarif_form input[name='id_tarif']").removeAttr('readonly');
     });
 
-    if (e[1] == "tarif_edit&id_tarif") {
+    if (p == "tarif_edit") {
       $("#tarif_list").hide();
       $("#tarif_add").show();
       $("#tarif_form button").val('tarif_edit');
       $("#tarif_form input[name='id_tarif']").attr('readonly', true);
-      $("<input>").attr({ type: "hidden", name: "id_tarif_lama" }).val(e[2]).appendTo("#tarif_form");
+      $("<input>").attr({ type: "hidden", name: "id_tarif_lama" }).val(params.get("id_tarif")).appendTo("#tarif_form");
     }
 
-  } else if (e[1] == "catat_edit_meter" || e[1] == "meter_edit&no" || e[1] == "pemakaian_warga") { // petugas
+  } else if (p == "catat_edit_meter" || p == "meter_edit" || p == "pemakaian_warga") { // petugas
 
     $("#summary, #chart, #user_add, #user_list, #tarif_add, #meter_add, #tarif_list, #pilih_waktu, #chart").hide();
     $("#meter_list").show();
@@ -118,10 +119,10 @@ $(document).ready(function () {
       $("#meter_form button[type='submit']").val('meter_add');
     });
 
-    if (e[1] == "meter_edit&no") {
+    if (p == "meter_edit") {
       $("#tarif_add, #tarif_list, #meter_list").hide();
       $("#meter_add").show();
-      $("<input>").attr({ type: "hidden", name: "no" }).val(e[2]).appendTo("#meter_form");
+      $("<input>").attr({ type: "hidden", name: "no" }).val(params.get("no")).appendTo("#meter_form");
       $("#meter_form button").val('meter_edit');
       $("#meter_form input[name='no']").attr('readonly', true);
 
@@ -129,7 +130,7 @@ $(document).ready(function () {
 
 
   }
-  else if (e[1] == "pantau_pemakaian") { // warga
+  else if (p == "pantau_pemakaian") { // warga
 
     $("#summary, #chart, #pilih_waktu").hide();
     $("#user_add, #user_list, #tarif_add, #tarif_list, #meter_add, #meter_list").hide();
@@ -140,16 +141,26 @@ $(document).ready(function () {
       new simpleDatatables.DataTable(wargaTable);
     }
     // JARING PENGAMAN MENU BARU (Menghalangi Dashboard tembus ke Infografis & Tagihan)
-  } else if (e[1] == "tagihan_warga" || e[1] == "tagihan_saya" || e[1] == "infografis_warga" || e[1] == "infografis_tagihan_warga") {
+  } else if (p == "tagihan_warga" || p == "tagihan_saya" || p == "infografis_warga" || p == "infografis_tagihan_warga") {
     $("#summary, #pilih_waktu").hide();
     $("#user_add, #user_list, #tarif_add, #tarif_list, #meter_add, #meter_list, #warga_pemakaian_list").hide();
 
     // Jika menu infografis, munculkan grafiknya. Jika tagihan, sembunyikan grafik.
-    if (e[1] == "tagihan_warga" || e[1] == "tagihan_saya") {
+    if (p == "tagihan_warga" || p == "tagihan_saya") {
       $("#chart").hide();
     } else {
       $("#chart").show();
     }
+  } else if (p == "settings") {
+    $("#summary, #chart, #pilih_waktu").hide();
+    $("#user_add, #user_list, #tarif_add, #tarif_list, #meter_add, #meter_list, #warga_pemakaian_list, #activity_log_page").hide();
+    $("#settings_page").show();
+
+  } else if (p == "activity_log") {
+    $("#summary, #chart, #pilih_waktu").hide();
+    $("#user_add, #user_list, #tarif_add, #tarif_list, #meter_add, #meter_list, #warga_pemakaian_list, #settings_page").hide();
+    $("#activity_log_page").show();
+
     // dashboard 
   } else {
     // ==========================================

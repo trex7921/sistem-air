@@ -1,8 +1,33 @@
 <?php
+session_start();
+
 // koneksi ke database
 include './assets/func.php';
 $air = new kelas_air;
 $koneksi=$air->koneksi();
+
+// TOKEN CSRF buat form login ini sendiri (form-form di dalam dashboard udah dapet token terpisah di login/index.php)
+if (empty($_SESSION['csrf_token_login'])) {
+    $_SESSION['csrf_token_login'] = bin2hex(random_bytes(32));
+}
+
+// RATE LIMIT percobaan login, dikunci per-IP. GAGAL-AMAN: kalau tabel login_attempts belum dibuat
+// (migrasi belum jalan -- lihat README/patch notes), lewati proteksi ini diam-diam, JANGAN block semua orang.
+$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+$rate_limited = false;
+$rl_check = @mysqli_prepare($koneksi, "SELECT COUNT(*) FROM login_attempts WHERE identifier=? AND attempt_time > (NOW() - INTERVAL 15 MINUTE)");
+if ($rl_check) {
+    mysqli_stmt_bind_param($rl_check, "s", $ip);
+    mysqli_stmt_execute($rl_check);
+    $rl_row = mysqli_fetch_row(mysqli_stmt_get_result($rl_check));
+    if ($rl_row && $rl_row[0] >= 5) {
+        $rate_limited = true;
+    }
+}
+function catat_percobaan_gagal($koneksi, $ip) {
+    $ins = @mysqli_prepare($koneksi, "INSERT INTO login_attempts (identifier, attempt_time) VALUES (?, NOW())");
+    if ($ins) { mysqli_stmt_bind_param($ins, "s", $ip); mysqli_stmt_execute($ins); }
+}
 
 // masukkan data ke user tabel
 // $pass=password_hash("aiman", PASSWORD_DEFAULT);
@@ -70,6 +95,17 @@ $koneksi=$air->koneksi();
                                         
                                         <?php
                                          if(isset($_POST['tombol'])){
+                                          if (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token_login'], $_POST['csrf_token'])) {
+                                            echo "<div class=\"alert alert-danger alert-dismissible fade show shadow-sm\">
+                                                    <button type=button class=btn-close data-bs-dismiss=alert></button>
+                                                    <strong>Gagal!</strong> Sesi form kadaluarsa, muat ulang halaman dan coba lagi.
+                                                </div>";
+                                          } elseif ($rate_limited) {
+                                            echo "<div class=\"alert alert-danger alert-dismissible fade show shadow-sm\">
+                                                    <button type=button class=btn-close data-bs-dismiss=alert></button>
+                                                    <strong>Gagal!</strong> Terlalu banyak percobaan gagal. Coba lagi dalam beberapa menit.
+                                                </div>";
+                                          } else {
                                             $username=$_POST['username'];
                                             $password=$_POST['password'];
                                             
@@ -85,25 +121,29 @@ $koneksi=$air->koneksi();
                                                 $pass_cek=$dc[1];
 
                                                 if(password_verify($password, $pass_cek)) {
-                                                    session_start();
+                                                    session_regenerate_id(true);
                                                     $_SESSION['user']=$username;
-                                                    $_SESSION['pass']=$password;
+                                                    unset($_SESSION['csrf_token_login']);
                                                     echo "<script>window.location.replace('./login/index.php')</script>";
                                                 } else {
+                                                    catat_percobaan_gagal($koneksi, $ip);
                                                     echo "<div class=\"alert alert-danger alert-dismissible fade show shadow-sm\">
                                                             <button type=button class=btn-close data-bs-dismiss=alert></button>
                                                             <strong>Gagal!</strong> Password tidak valid. 
                                                         </div>";
                                                 }
                                             } else {
+                                                catat_percobaan_gagal($koneksi, $ip);
                                                 echo "<div class=\"alert alert-danger alert-dismissible fade show shadow-sm\">
                                                         <button type=button class=btn-close data-bs-dismiss=alert></button>
                                                         <strong>Gagal!</strong> Username tidak ditemukan. 
                                                     </div>";
                                             }
+                                          }
                                          }
                                         ?>
                                         <form method="post">
+                                            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token_login']; ?>">
                                             <div class="form-floating mb-3 mt-2">
                                                 <input class="form-control" id="inputUser" type="text" placeholder="Username" name="username" required style="border-radius: 10px;" />
                                                 <label for="inputUser"><i class="fas fa-user text-muted me-2"></i>Username</label>
