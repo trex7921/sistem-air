@@ -93,55 +93,100 @@ function catat_percobaan_gagal($koneksi, $ip) {
 
                                     <div class="card-body px-4 pb-4 pt-3">
                                         
-                                        <?php
-                                         if(isset($_POST['tombol'])){
-                                          if (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token_login'], $_POST['csrf_token'])) {
-                                            echo "<div class=\"alert alert-danger alert-dismissible fade show shadow-sm\">
-                                                    <button type=button class=btn-close data-bs-dismiss=alert></button>
-                                                    <strong>Gagal!</strong> Sesi form kadaluarsa, muat ulang halaman dan coba lagi.
-                                                </div>";
-                                          } elseif ($rate_limited) {
-                                            echo "<div class=\"alert alert-danger alert-dismissible fade show shadow-sm\">
-                                                    <button type=button class=btn-close data-bs-dismiss=alert></button>
-                                                    <strong>Gagal!</strong> Terlalu banyak percobaan gagal. Coba lagi dalam beberapa menit.
-                                                </div>";
-                                          } else {
-                                            $username=$_POST['username'];
-                                            $password=$_POST['password'];
-                                            
-                                            $stmt=mysqli_prepare($koneksi, "SELECT username,password FROM login WHERE username=?");
-                                            mysqli_stmt_bind_param($stmt, "s", $username);
-                                            mysqli_stmt_execute($stmt);
-                                            $qc=mysqli_stmt_get_result($stmt);
-                                            $dc=mysqli_fetch_row($qc);
+                                       <?php
+if(isset($_POST['tombol'])){
+    if (empty($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token_login'], $_POST['csrf_token'])) {
+        echo "<div class=\"alert alert-danger alert-dismissible fade show shadow-sm\">
+                <button type=button class=btn-close data-bs-dismiss=alert></button>
+                <strong>Gagal!</strong> Sesi form kadaluarsa, muat ulang halaman dan coba lagi.
+            </div>";
+    } elseif ($rate_limited) {
+        echo "<div class=\"alert alert-danger alert-dismissible fade show shadow-sm\">
+                <button type=button class=btn-close data-bs-dismiss=alert></button>
+                <strong>Gagal!</strong> Terlalu banyak percobaan gagal. Coba lagi dalam 15 menit.
+            </div>";
+    } else {
+        $t = $_POST['tombol'];
 
-                                            if(!empty($dc[0])) $user_cek=$dc[0];
-                                            
-                                            if(!empty($user_cek)) {
-                                                $pass_cek=$dc[1];
+        // --- PROSES 1: LOGIN ---
+        if ($t == "login") {
+            $username = trim($_POST['username']);
+            $password = $_POST['password'];
+            
+            $stmt = mysqli_prepare($koneksi, "SELECT username, password FROM login WHERE username=?");
+            mysqli_stmt_bind_param($stmt, "s", $username);
+            mysqli_stmt_execute($stmt);
+            $qc = mysqli_stmt_get_result($stmt);
+            $dc = mysqli_fetch_row($qc);
 
-                                                if(password_verify($password, $pass_cek)) {
-                                                    session_regenerate_id(true);
-                                                    $_SESSION['user']=$username;
-                                                    unset($_SESSION['csrf_token_login']);
-                                                    echo "<script>window.location.replace('./login/index.php')</script>";
-                                                } else {
-                                                    catat_percobaan_gagal($koneksi, $ip);
-                                                    echo "<div class=\"alert alert-danger alert-dismissible fade show shadow-sm\">
-                                                            <button type=button class=btn-close data-bs-dismiss=alert></button>
-                                                            <strong>Gagal!</strong> Password tidak valid. 
-                                                        </div>";
-                                                }
-                                            } else {
-                                                catat_percobaan_gagal($koneksi, $ip);
-                                                echo "<div class=\"alert alert-danger alert-dismissible fade show shadow-sm\">
-                                                        <button type=button class=btn-close data-bs-dismiss=alert></button>
-                                                        <strong>Gagal!</strong> Username tidak ditemukan. 
-                                                    </div>";
-                                            }
-                                          }
-                                         }
-                                        ?>
+            if ($dc) {
+                if (password_verify($password, $dc[1])) {
+                    session_regenerate_id(true);
+                    $_SESSION['user'] = $dc[0];
+                    unset($_SESSION['csrf_token_login']);
+
+                    // FITUR REMEMBER ME: Simpan cookie username selama 30 hari jika dicentang
+                    if (isset($_POST['remember_me'])) {
+                        setcookie('remember_user', $dc[0], time() + (86400 * 30), "/");
+                    } else {
+                        setcookie('remember_user', '', time() - 3600, "/");
+                    }
+
+                    echo "<script>window.location.replace('./login/index.php')</script>";
+                    exit();
+                } else {
+                    catat_percobaan_gagal($koneksi, $ip);
+                    echo "<div class=\"alert alert-danger alert-dismissible fade show shadow-sm\">
+                            <button type=button class=btn-close data-bs-dismiss=alert></button>
+                            <strong>Gagal!</strong> Password tidak valid. 
+                        </div>";
+                }
+            } else {
+                catat_percobaan_gagal($koneksi, $ip);
+                echo "<div class=\"alert alert-danger alert-dismissible fade show shadow-sm\">
+                        <button type=button class=btn-close data-bs-dismiss=alert></button>
+                        <strong>Gagal!</strong> Username tidak ditemukan. 
+                    </div>";
+            }
+        }
+        // --- PROSES 2: REGISTER WARGA BARU ---
+        elseif ($t == "register_warga") {
+            $reg_user   = trim($_POST['reg_username']);
+            $reg_pass   = password_hash($_POST['reg_password'], PASSWORD_DEFAULT);
+            $reg_nama   = trim($_POST['reg_nama']);
+            $reg_alamat = trim($_POST['reg_alamat']);
+            $reg_kota   = trim($_POST['reg_kota']);
+            $reg_tlp    = trim($_POST['reg_tlp']);
+            $reg_tipe   = $_POST['reg_tipe']; // RT / Kos
+
+            // Cek ketersediaan username
+            $stmt = mysqli_prepare($koneksi, "SELECT username FROM login WHERE username=?");
+            mysqli_stmt_bind_param($stmt, "s", $reg_user);
+            mysqli_stmt_execute($stmt);
+            if (mysqli_num_rows(mysqli_stmt_get_result($stmt)) > 0) {
+                echo "<div class=\"alert alert-warning alert-dismissible fade show shadow-sm\">
+                        <button type=button class=btn-close data-bs-dismiss=alert></button>
+                        <strong>Gagal!</strong> Username '<b>".htmlspecialchars($reg_user)."</b>' sudah terdaftar. Gunakan username lain.
+                    </div>";
+            } else {
+                $stmt_ins = mysqli_prepare($koneksi, "INSERT INTO login (username, password, nama, alamat, kota, tlp, level, tipe, status) VALUES (?, ?, ?, ?, ?, ?, 'warga', ?, 'AKTIF')");
+                mysqli_stmt_bind_param($stmt_ins, "sssssss", $reg_user, $reg_pass, $reg_nama, $reg_alamat, $reg_kota, $reg_tlp, $reg_tipe);
+                if (mysqli_stmt_execute($stmt_ins)) {
+                    echo "<div class=\"alert alert-success alert-dismissible fade show shadow-sm\">
+                            <button type=button class=btn-close data-bs-dismiss=alert></button>
+                            <strong>Pendaftaran Berhasil!</strong> Akun warga Anda telah aktif. Silakan login.
+                        </div>";
+                } else {
+                    echo "<div class=\"alert alert-danger alert-dismissible fade show shadow-sm\">
+                            <button type=button class=btn-close data-bs-dismiss=alert></button>
+                            <strong>Gagal!</strong> Terjadi kesalahan sistem saat mendaftar.
+                        </div>";
+                }
+            }
+        }
+    }
+}
+?>
                                         <form method="post">
                                             <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token_login']; ?>">
                                             <div class="form-floating mb-3 mt-2">
@@ -171,6 +216,78 @@ function catat_percobaan_gagal($koneksi, $ip) {
                                             </div>
                                         </form>
                                     </div>
+                                    <div class="modal fade" id="modalLupaSandi" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-start">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-key me-2"></i>Bantuan Lupa Sandi</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="mb-2">Demi keamanan data warga, reset kata sandi dilakukan melalui verifikasi pengurus:</p>
+                <div class="alert alert-info border-0 shadow-sm mb-0">
+                    <i class="fas fa-info-circle me-2"></i> Silakan hubungi <b>Admin / Bendahara RT 01</b> untuk melakukan verifikasi identitas dan reset password akun Anda.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalRegister" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-start">
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token_login']; ?>">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Pendaftaran Akun Warga Baru</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Username</label>
+                        <input type="text" name="reg_username" class="form-control" placeholder="Contoh: warga_budiman" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Password</label>
+                        <input type="password" name="reg_password" class="form-control" placeholder="••••••••" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Nama Lengkap</label>
+                        <input type="text" name="reg_nama" class="form-control" placeholder="Nama sesuai KTP" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">Kota</label>
+                            <input type="text" name="reg_kota" class="form-control" value="Semarang" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-semibold">No. Telepon</label>
+                            <input type="text" name="reg_tlp" class="form-control" placeholder="08123456789" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Tipe Hunian</label>
+                        <select name="reg_tipe" class="form-select" required>
+                            <option value="RT">Rumah Tangga (RT)</option>
+                            <option value="Kos">Kos</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Alamat Lengkap</label>
+                        <textarea name="reg_alamat" class="form-control" rows="2" placeholder="Jl. Anggrek No. 12 RT 01" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" name="tombol" value="register_warga" class="btn btn-primary fw-bold">Daftar Akun</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
                                     
                                     <div class="card-footer bg-transparent border-top text-center py-4">
                                         <a href="profile.php" class="btn btn-outline-dark btn-sm rounded-pill px-4 fw-bold shadow-sm">

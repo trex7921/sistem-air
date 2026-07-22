@@ -603,6 +603,56 @@ if (empty($_SESSION['csrf_token'])) {
                                         }
 
                                     }
+                                    elseif ($t == "upload_bukti") {
+    $no_meter = (int)$_POST['no_meter'];
+    $user_warga = $_SESSION['user'];
+
+    // Validasi file upload
+    if (isset($_FILES['bukti_file']) && $_FILES['bukti_file']['error'] === UPLOAD_ERR_OK) {
+        $file_tmp  = $_FILES['bukti_file']['tmp_name'];
+        $file_name = $_FILES['bukti_file']['name'];
+        $file_size = $_FILES['bukti_file']['size'];
+        $ext       = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+
+        $allowed_ext = array('jpg', 'jpeg', 'png');
+
+        if (!in_array($ext, $allowed_ext)) {
+            echo "<script>alert('Gagal! Format file harus JPG, JPEG, atau PNG.'); window.location.replace('index.php?p=pantau_pemakaian');</script>";
+            exit();
+        }
+
+        if ($file_size > 2 * 1024 * 1024) { // Max 2MB
+            echo "<script>alert('Gagal! Ukuran file maksimal 2MB.'); window.location.replace('index.php?p=pantau_pemakaian');</script>";
+            exit();
+        }
+
+        // Buat direktori jika belum ada
+        $target_dir = "../assets/img/bukti/";
+        if (!is_dir($target_dir)) {
+            mkdir($target_dir, 0755, true);
+        }
+
+        $new_filename = "bukti_" . $no_meter . "_" . time() . "." . $ext;
+        $target_path  = $target_dir . $new_filename;
+
+        if (move_uploaded_file($file_tmp, $target_path)) {
+            // Simpan nama file ke database (Pastikan kolom bukti_bayar sudah ditambahkan ke tabel pemakaian)
+            $stmt_up = mysqli_prepare($koneksi, "UPDATE pemakaian SET bukti_bayar=? WHERE no=? AND username=?");
+            mysqli_stmt_bind_param($stmt_up, "sis", $new_filename, $no_meter, $user_warga);
+            mysqli_stmt_execute($stmt_up);
+
+            $air->catat_log($user_warga, $level, 'upload_bukti', 'pemakaian', $no_meter, "Upload bukti bayar: $new_filename");
+            echo "<script>alert('Sukses! Bukti pembayaran berhasil diunggah. Menunggu konfirmasi Bendahara.'); window.location.replace('index.php?p=pantau_pemakaian');</script>";
+            exit();
+        } else {
+            echo "<script>alert('Gagal mengunggah file ke server.'); window.location.replace('index.php?p=pantau_pemakaian');</script>";
+            exit();
+        }
+    } else {
+        echo "<script>alert('Pilih file bukti pembayaran terlebih dahulu.'); window.location.replace('index.php?p=pantau_pemakaian');</script>";
+        exit();
+    }
+}
                                     elseif($t == "meter_hapus") { 
                                         $no = $_POST['no']; 
 
@@ -1520,30 +1570,104 @@ if (empty($_SESSION['csrf_token'])) {
                 mysqli_stmt_execute($stmt);
                 $q_warga = mysqli_stmt_get_result($stmt);
                 
-                while($d_warga = mysqli_fetch_row($q_warga)) {
-                    $tgl_w      = $d_warga[0];
-                    $waktu_w    = $d_warga[1];
-                    $kd_tarif_w = $d_warga[2];
-                    $m_awal     = $d_warga[3];
-                    $m_akhir    = $d_warga[4];
-                    $pake       = $d_warga[5];
-                    $tagihan_w  = $d_warga[6];
-                    $status_w   = $d_warga[7];
+                
+$sesi_user = $_SESSION['user'];
+// Ambil juga kolom bukti_bayar & no
+$stmt = mysqli_prepare($koneksi, "SELECT tgl, waktu, kd_tarif, meter_awal, meter_akhir, pemakaian, tagihan, status, bukti_bayar, no FROM pemakaian WHERE username=? ORDER BY tgl DESC");
+mysqli_stmt_bind_param($stmt, "s", $sesi_user);
+mysqli_stmt_execute($stmt);
+$q_warga = mysqli_stmt_get_result($stmt);
 
-                    $tagihan_rp_w = "Rp " . number_format($tagihan_w, 0, ',', '.');
-                    $badge_w = ($status_w == "LUNAS") ? "<span class='badge bg-success'>LUNAS</span>" : "<span class='badge bg-danger'>BELUM LUNAS</span>";
+while($d_warga = mysqli_fetch_assoc($q_warga)) {
+    $no_m        = $d_warga['no'];
+    $tgl_w       = $d_warga['tgl'];
+    $waktu_w     = $d_warga['waktu'];
+    $kd_tarif_w  = $d_warga['kd_tarif'];
+    $m_awal      = $d_warga['meter_awal'];
+    $m_akhir     = $d_warga['meter_akhir'];
+    $pake        = $d_warga['pemakaian'];
+    $tagihan_w   = $d_warga['tagihan'];
+    $status_w    = $d_warga['status'];
+    $bukti_bayar = $d_warga['bukti_bayar'] ?? '';
 
-                    echo "<tr>
-                            <td>$tgl_w $waktu_w</td>
-                            <td>$kd_tarif_w</td>
-                            <td>$m_awal</td>
-                            <td>$m_akhir</td>
-                            <td>$pake</td>
-                            <td>$tagihan_rp_w</td>
-                            <td>$badge_w</td>
-                          </tr>";
-                }
-                ?>
+    $tagihan_rp_w = "Rp " . number_format($tagihan_w, 0, ',', '.');
+    $badge_w = ($status_w == "LUNAS") ? "<span class='badge bg-success'>LUNAS</span>" : "<span class='badge bg-danger'>BELUM LUNAS</span>";
+
+    // Tombol aksi bayar / status bukti
+    if ($status_w == "LUNAS") {
+        $aksi_bayar = "<span class='badge bg-secondary'><i class='fas fa-check-circle me-1'></i>Selesai</span>";
+    } else {
+        if (!empty($bukti_bayar)) {
+            $aksi_bayar = "<a href='../assets/img/bukti/$bukti_bayar' target='_blank' class='btn btn-outline-info btn-sm me-1'><i class='fas fa-image'></i> Bukti</a>
+                           <button type='button' class='btn btn-warning btn-sm' data-bs-toggle='modal' data-bs-target='#modalBayar$no_m'><i class='fas fa-upload'></i> Ganti</button>";
+        } else {
+            $aksi_bayar = "<button type='button' class='btn btn-primary btn-sm' data-bs-toggle='modal' data-bs-target='#modalBayar$no_m'><i class='fas fa-wallet me-1'></i>Bayar</button>";
+        }
+    }
+
+    echo "<tr>
+            <td>$tgl_w $waktu_w</td>
+            <td>$kd_tarif_w</td>
+            <td>$m_awal</td>
+            <td>$m_akhir</td>
+            <td>$pake</td>
+            <td>$tagihan_rp_w</td>
+            <td>$badge_w</td>
+            <td>$aksi_bayar</td>
+          </tr>";
+
+    // Modal Pembayaran & Upload Bukti
+    if ($status_w != "LUNAS") {
+    ?>
+    <div class="modal fade" id="modalBayar<?php echo $no_m; ?>" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form action="" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                    <input type="hidden" name="no_meter" value="<?php echo $no_m; ?>">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title"><i class="fas fa-qrcode me-2"></i>Pembayaran Tagihan Air</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4 text-start">
+                        <div class="alert alert-light border shadow-sm mb-3">
+                            <div class="small text-muted">Total Tagihan:</div>
+                            <div class="fs-4 fw-bold text-success"><?php echo $tagihan_rp_w; ?></div>
+                        </div>
+
+                        <h6 class="fw-bold mb-2"><i class="fas fa-university me-1 text-primary"></i> Metode Pembayaran:</h6>
+                        <ul class="list-group mb-3 small">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><b>BCA</b>: 123-456-7890 (a.n. Si-Air Kel 01)</span>
+                                <span class="badge bg-secondary">Transfer</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><b>Mandiri</b>: 098-765-4321 (a.n. Si-Air Kel 01)</span>
+                                <span class="badge bg-secondary">Transfer</span>
+                            </li>
+                            <li class="list-group-item">
+                                <b>QRIS All Payment</b>: Scan kode QRIS di papan pengumuman RT 01.
+                            </li>
+                        </ul>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Upload Bukti Transfer (JPG, JPEG, PNG max 2MB)</label>
+                            <input type="file" name="bukti_file" class="form-control" accept="image/jpeg, image/png, image/jpg" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" name="tombol" value="upload_bukti" class="btn btn-success fw-bold"><i class="fas fa-paper-plane me-1"></i> Kirim Bukti</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <?php
+    }
+}
+
+               ?> 
             </tbody>
         </table>
     </div>
